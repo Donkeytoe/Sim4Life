@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Status">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#5E5CE6" id="theme-color-meta">
+    
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Status Pro","short_name":"Status","display":"standalone","start_url":".","background_color":"#F2F2F7","theme_color":"#5E5CE6","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%2334C759%22><path d=%22M12 2L22 12L12 22L2 12L12 2z%22/></svg>","sizes":"192x192","type":"image/svg+xml"}]}'>
+
+    <title>Status Pro</title>
+    <style>
+        /* CSS: Core Theme Variables */
+        :root {
+            --app-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --purple-accent: rgb(94, 92, 230);
+            
+            /* Light Theme */
+            --bg-gradient: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --text-main: #1C1C1E;
+            --text-muted: #6e6e73;
+            --card-bg: #FFFFFF;
+            --input-bg: #FFFFFF;
+            --input-border: #D1D1D6;
+            --btn-text: #FFFFFF;
+            --bar-bg: #F2F2F7;
+            --bar-green: linear-gradient(90deg, #34C759, #30d158);
+            --bar-orange: linear-gradient(90deg, #FF9500, #FF9F0A);
+            --bar-red: linear-gradient(90deg, #FF3B30, #FF453A);
+            --bar-ended: #E5E5EA;
+            --remove-btn-bg: #F2F2F7;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme */
+            --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --glass-bg: rgba(30, 30, 46, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --text-main: #F2F2F7;
+            --text-muted: #A1A1A6;
+            --card-bg: #2C2C2E;
+            --input-bg: #1C1C1E;
+            --input-border: #3A3A3C;
+            --bar-bg: #3A3A3C;
+            --bar-ended: #48484A;
+            --remove-btn-bg: #3A3A3C;
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s, box-shadow 0.3s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overscroll-behavior-y: none;
+        }
+
+        body {
+            font-family: var(--app-font);
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column; /* Stacks the container and the dock vertically */
+            align-items: center; /* Centers elements horizontally */
+            justify-content: flex-start;
+            padding: 2rem 1rem;
+            margin: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .app-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            width: 100%;
+            max-width: 480px;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            position: relative;
+            height: fit-content;
+        }
+
+        .top-diamond {
+            display: flex;
+            justify-content: center;
+            margin-bottom: -10px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 40px;
+        }
+
+        h1 {
+            color: var(--text-main);
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .header-actions {
+            display: flex;
+            z-index: 2;
+        }
+
+        .icon-btn {
+            background: rgba(128, 128, 128, 0.1);
+            color: var(--text-main);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-btn:hover { background: rgba(128, 128, 128, 0.2); }
+
+        /* Modified Dock: Now sits naturally beneath the app container */
+        .bottom-dock {
+            display: flex;
+            gap: 16px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 10px 20px;
+            border-radius: 40px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            margin-top: 1.5rem; /* The exact gap between the white rectangle and the dock */
+            z-index: 100;
+        }
+
+        .dock-btn {
+            background: rgba(128, 128, 128, 0.1);
+            color: var(--text-main);
+            border: none;
+            padding: 10px;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .dock-btn:hover { background: rgba(128, 128, 128, 0.2); transform: translateY(-2px); }
+        .notify-btn { color: var(--purple-accent); }
+        .notify-btn.granted { color: #34C759; cursor: default; }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: var(--glass-border);
+            padding: 1.5rem;
+            border-radius: 24px;
+        }
+
+        input[type="text"], input[type="number"], select {
+            font-family: inherit;
+            border: 1px solid var(--input-border);
+            background: var(--input-bg);
+            color: var(--text-main);
+            padding: 14px;
+            border-radius: 14px;
+            font-size: 1rem;
+            outline: none;
+            width: 100%;
+            user-select: auto;
+            -webkit-user-select: auto;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--purple-accent);
+            box-shadow: 0 0 0 2px var(--purple-accent);
+        }
+
+        .time-inputs { display: flex; gap: 12px; }
+
+        button.create-btn {
+            background: var(--purple-accent);
+            color: var(--btn-text);
+            border: none;
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        button.create-btn:active { transform: scale(0.96); }
+
+        #status-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .status-item {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-title { font-weight: 700; font-size: 1.1rem; color: var(--text-main); }
+        
+        .progress-container {
+            width: 100%;
+            background-color: var(--bar-bg);
+            height: 12px;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--bar-green);
+            width: 100%;
+            border-radius: 999px;
+            transition: width 1s linear;
+        }
+
+        .progress-fill.warning { background: var(--bar-orange); }
+        .progress-fill.danger { background: var(--bar-red); }
+        .progress-fill.ended { background: var(--bar-ended); }
+
+        .status-footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: -4px;
+        }
+
+        .status-time {
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--purple-accent);
+            font-variant-numeric: tabular-nums;
+            background: rgba(128, 128, 128, 0.1);
+            padding: 4px 12px;
+            border-radius: 8px;
+        }
+
+        .remove-btn {
+            background: var(--remove-btn-bg);
+            color: var(--text-muted);
+            border: none;
+            padding: 6px;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .remove-btn:hover { background: #FF3B30; color: white; transform: scale(1.1); }
+
+        .luck-section {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .luck-btn {
+            background: transparent;
+            border: none;
+            font-size: 3rem;
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.2s, filter 0.2s;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));
+        }
+
+        .luck-btn:hover { transform: scale(1.1); filter: drop-shadow(0 6px 15px rgba(0,0,0,0.2)); }
+        .luck-btn:active { transform: scale(0.95); }
+        .luck-output { font-weight: 700; font-size: 1.2rem; min-height: 1.5rem; text-align: center; color: var(--text-main); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .settings-card {
+            background: var(--card-bg); width: 90%; max-width: 400px;
+            border-radius: 24px; padding: 2rem; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .settings-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.5rem; }
+        .close-btn { background: var(--remove-btn-bg); border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; color: var(--text-main); }
+        .setting-group { display: flex; flex-direction: column; gap: 8px; }
+        .setting-group label { font-weight: 600; font-size: 0.9rem; color: var(--text-muted); }
+        
+        .slider-row { display: flex; align-items: center; gap: 10px; }
+        .slider-row span { width: 15px; font-weight: bold; }
+        .slider-row span.r { color: #FF3B30; }
+        .slider-row span.g { color: #34C759; }
+        .slider-row span.b { color: #007AFF; }
+        input[type="range"] { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 5px; background: var(--glass-border); outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--text-main); cursor: pointer; }
+        .color-preview { width: 100%; height: 40px; border-radius: 12px; background: var(--purple-accent); margin-top: 10px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="top-diamond">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="#34C759" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L22 12L12 22L2 12L12 2z"/>
+            </svg>
+        </div>
+
+        <div class="header">
+            <div class="header-actions">
+                <button class="icon-btn" onclick="toggleFullScreen()" title="Full Screen">⛶</button>
+            </div>
+            <h1>Status</h1>
+            <div style="width: 44px;"></div>
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="title-input" placeholder="What's your next focus?">
+            <div class="time-inputs">
+                <input type="number" id="hours-input" placeholder="Hrs" min="0">
+                <input type="number" id="min-input" placeholder="Mins" min="0" max="59">
+            </div>
+            <button class="create-btn" onclick="addNewStatus()">Update</button>
+        </div>
+
+        <div id="status-list">
+            </div>
+
+        <div class="luck-section">
+            <button class="luck-btn" onclick="checkLuck()">🔮</button>
+            <div id="luck-output" class="luck-output"></div>
+        </div>
+    </div>
+
+    <div class="bottom-dock">
+        <button class="dock-btn" onclick="toggleSettings()">⚙️</button>
+        <button class="dock-btn" id="theme-btn" onclick="toggleTheme()">🌙</button>
+        <button class="dock-btn notify-btn" id="notify-btn" onclick="requestNotificationPermission()">🔔</button>
+    </div>
+
+    <div class="modal-overlay" id="settings-modal">
+        <div class="settings-card">
+            <div class="settings-header">
+                Settings
+                <button class="close-btn" onclick="toggleSettings()">✕</button>
+            </div>
+            
+            <div class="setting-group">
+                <label>App Font</label>
+                <select id="font-select" onchange="updateFont()">
+                    <option value='-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'>System Default (Sleek)</option>
+                    <option value='"SF Pro Rounded", "Nunito", sans-serif'>Rounded (Friendly)</option>
+                    <option value='"Courier New", Courier, monospace'>Monospace (Coding)</option>
+                    <option value='Georgia, serif'>Serif (Classic)</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>Custom Interface Color (RGB)</label>
+                <div class="slider-row">
+                    <span class="r">R</span>
+                    <input type="range" id="red-slider" min="0" max="255" value="94" oninput="updateColor()">
+                </div>
+                <div class="slider-row">
+                    <span class="g">G</span>
+                    <input type="range" id="green-slider" min="0" max="255" value="92" oninput="updateColor()">
+                </div>
+                <div class="slider-row">
+                    <span class="b">B</span>
+                    <input type="range" id="blue-slider" min="0" max="255" value="230" oninput="updateColor()">
+                </div>
+                <div class="color-preview" id="color-preview"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) { 
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) { 
+                    document.documentElement.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { 
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { 
+                    document.msExitFullscreen();
+                }
+            }
+        }
+
+        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('active'); }
+        function updateFont() { document.documentElement.style.setProperty('--app-font', document.getElementById('font-select').value); }
+        function updateColor() {
+            const r = document.getElementById('red-slider').value;
+            const g = document.getElementById('green-slider').value;
+            const b = document.getElementById('blue-slider').value;
+            const newColor = `rgb(${r}, ${g}, ${b})`;
+            document.documentElement.style.setProperty('--purple-accent', newColor);
+            document.getElementById('color-preview').style.background = newColor;
+            document.getElementById('theme-color-meta').setAttribute('content', newColor); 
+        }
+
+        function toggleTheme() {
+            const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            document.getElementById('theme-btn').innerText = newTheme === 'light' ? '🌙' : '☀️';
+        }
+
+        let statuses = [];
+        let statusIdCounter = 0;
+
+        function requestNotificationPermission() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") document.getElementById('notify-btn').classList.add("granted");
+                });
+            }
+        }
+
+        function addNewStatus() {
+            const titleInput = document.getElementById('title-input');
+            const hoursInput = document.getElementById('hours-input');
+            const minInput = document.getElementById('min-input');
+
+            const title = titleInput.value.trim() || "Focused Session";
+            const totalSeconds = (parseInt(hoursInput.value) || 0) * 3600 + (parseInt(minInput.value) || 0) * 60;
+
+            if (totalSeconds <= 0) return alert("Please enter a duration to track.");
+
+            const newStatus = { id: statusIdCounter++, title, totalSeconds, remainingSeconds: totalSeconds, interval: null };
+            statuses.push(newStatus);
+            renderStatuses();
+            startTimer(newStatus);
+
+            titleInput.value = ''; hoursInput.value = ''; minInput.value = '';
+        }
+
+        function startTimer(status) {
+            status.interval = setInterval(() => {
+                status.remainingSeconds--;
+                if (status.remainingSeconds <= 0) {
+                    clearInterval(status.interval);
+                    status.remainingSeconds = 0;
+                    if ("Notification" in window && Notification.permission === "granted") {
+                        new Notification("Timer Complete!", { body: `Your status "${status.title}" has ended.` });
+                    } else {
+                        alert(`Timer Complete: ${status.title}`);
+                    }
+                }
+                updateStatusUI(status);
+            }, 1000);
+        }
+
+        function removeStatus(id) {
+            const index = statuses.findIndex(s => s.id === id);
+            if (index > -1) { clearInterval(statuses[index].interval); statuses.splice(index, 1); renderStatuses(); }
+        }
+
+        function formatTime(totalSeconds) {
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            return h > 0 
+                ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` 
+                : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function renderStatuses() {
+            const list = document.getElementById('status-list');
+            list.innerHTML = '';
+            statuses.forEach(status => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'status-item';
+                itemDiv.id = `status-${status.id}`;
+                
+                itemDiv.innerHTML = `
+                    <div class="status-header">
+                        <div class="status-title">${status.title}</div>
+                        <button class="remove-btn" onclick="removeStatus(${status.id})">✕</button>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-fill" id="bar-${status.id}" style="width: 100%"></div>
+                    </div>
+                    <div class="status-footer">
+                        <span class="status-time" id="time-${status.id}">${formatTime(status.remainingSeconds)}</span>
+                    </div>
+                `;
+                list.appendChild(itemDiv);
+                updateStatusUI(status);
+            });
+        }
+
+        function updateStatusUI(status) {
+            const timeEl = document.getElementById(`time-${status.id}`);
+            const barEl = document.getElementById(`bar-${status.id}`);
+            if (timeEl && barEl) {
+                timeEl.innerText = formatTime(status.remainingSeconds);
+                const percentage = (status.remainingSeconds / status.totalSeconds) * 100;
+                barEl.style.width = `${percentage}%`;
+                barEl.className = 'progress-fill'; 
+                if (status.remainingSeconds === 0) barEl.classList.add('ended');
+                else if (percentage < 20) barEl.classList.add('danger'); 
+                else if (percentage < 50) barEl.classList.add('warning'); 
+            }
+        }
+
+        const luckPhrases = [
+            "Good", "Bad", "I'd be careful", "Outlook is excellent", "Don't count on it", "Absolutely", "Very doubtful", 
+            "Proceed with caution", "The stars align", "Better not tell you now", "Ask again later", "Looks promising", 
+            "Not looking great", "Signs point to yes", "My sources say no", "Take a risk", "Play it safe today", 
+            "Luck is on your side", "Tread lightly", "Without a doubt", "It is decidedly so", "Focus and try again", 
+            "A pleasant surprise awaits", "Expect the unexpected"
+        ];
+
+        function checkLuck() {
+            const output = document.getElementById('luck-output');
+            output.innerText = luckPhrases[Math.floor(Math.random() * luckPhrases.length)];
+            output.style.transform = "scale(1.1)";
+            setTimeout(() => { output.style.transform = "scale(1)"; }, 150);
+        }
+    </script>
+</body>
+</html>
