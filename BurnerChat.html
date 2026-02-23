@@ -69,6 +69,7 @@
         button.action-btn {
             width: 100%; background: var(--glass-bg); color: white; border: 1px solid var(--glass-border); 
             padding: 12px; border-radius: 8px; font-size: 14px; font-family: monospace; cursor: pointer; text-transform: uppercase;
+            display: flex; justify-content: center; align-items: center;
         }
         button.action-btn:active { background: rgba(255,255,255,0.1); }
         button.danger { color: var(--red); border-color: rgba(255, 69, 58, 0.3); background: rgba(255, 69, 58, 0.1);}
@@ -94,7 +95,7 @@
         .control-icon { background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 0; font-family: monospace; }
         .control-icon.red { color: var(--red); font-size: 18px;}
 
-        .chat-body { display: none; padding: 15px; flex-direction: column; height: 300px; }
+        .chat-body { display: none; padding: 15px; flex-direction: column; height: 350px; }
         .chat-container.expanded .chat-body { display: flex; }
         .chat-window { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; padding: 10px; border-radius: 8px; background-color: #000; }
         
@@ -102,11 +103,26 @@
         .msg { padding: 8px 12px; border-radius: 8px; max-width: 85%; font-size: 13px; word-wrap: break-word;}
         .msg.sent { background-color: var(--blue); align-self: flex-end; }
         .msg.received { background-color: #222; color: white; align-self: flex-start; border-left: 3px solid var(--blue);}
+        .msg.failed { background-color: rgba(255, 69, 58, 0.8); color: white; align-self: flex-end; border: 1px solid var(--red); }
         .msg.system { background: transparent; color: var(--text-muted); align-self: center; font-size: 10px; text-transform: uppercase;}
 
         .chat-input-area { display: flex; gap: 8px; }
         .chat-input-area input { margin-bottom: 0; }
         .chat-input-area button { width: auto; padding: 0 15px; }
+        
+        /* Mic Recording State */
+        .mic-btn { width: 45px; font-size: 16px; }
+        .mic-btn.recording { 
+            background: rgba(255, 69, 58, 0.3); 
+            border-color: var(--red); 
+            animation: pulse 1.5s infinite; 
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
 
         /* Toggle Switches */
         .switch-container { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px dashed var(--border);}
@@ -120,7 +136,6 @@
         /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 100; }
         .modal { background: var(--card-bg); padding: 20px; border-radius: 12px; width: 90%; max-width: 350px; border: 1px solid var(--border); max-height: 90vh; overflow-y: auto;}
-        
         .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
 
         .donkey-footer { text-align: center; font-size: 10px; color: var(--text-muted); margin-top: auto; padding-top: 20px; padding-bottom: 20px; opacity: 0.6; }
@@ -204,7 +219,7 @@
 
         // Persistent Data Models
         let chatNames = JSON.parse(localStorage.getItem('p2p_chat_names')) || {}; 
-        let chatHistory = JSON.parse(localStorage.getItem('p2p_history')) || {}; 
+        let chatHistory = JSON.parse(localStorage.getItem('p2p_history_v2')) || {}; // Version bumped for audio support schema
         let activeConversations = {}; 
         let peer = null;
         let pendingConnection = null;
@@ -213,10 +228,11 @@
         const chatsContainer = document.getElementById('active-chats-container');
         const emptyState = document.getElementById('empty-state');
 
-        function saveMessageToStorage(groupId, text, type) {
+        // Note: isAudio boolean tells the renderer to create an <audio> tag instead of plain text
+        function saveMessageToStorage(groupId, content, type, isAudio = false, prefix = '') {
             if (!chatHistory[groupId]) chatHistory[groupId] = [];
-            chatHistory[groupId].push({ text, type });
-            localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
+            chatHistory[groupId].push({ content, type, isAudio, prefix });
+            localStorage.setItem('p2p_history_v2', JSON.stringify(chatHistory));
         }
 
         // --- Settings & Menus ---
@@ -249,7 +265,11 @@
                 createOrUpdateConversation(members, null, false);
                 
                 const chatWindow = activeConversations[groupId].domElement.querySelector('.chat-window');
-                chatHistory[groupId].forEach(msg => appendMsgToDOM(chatWindow, msg.text, msg.type));
+                chatHistory[groupId].forEach(msg => {
+                    // Fallback for old text-only history schema
+                    const content = msg.content || msg.text; 
+                    appendMsgToDOM(chatWindow, content, msg.type, msg.isAudio || false, msg.prefix || '');
+                });
 
                 members.forEach(targetId => {
                     const conn = peer.connect(targetId);
@@ -352,7 +372,7 @@
 
             if (!chatHistory[groupId]) {
                 chatHistory[groupId] = [];
-                localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
+                localStorage.setItem('p2p_history_v2', JSON.stringify(chatHistory));
             }
 
             const displayName = chatNames[groupId] || members.join(', ');
@@ -360,7 +380,9 @@
             activeConversations[groupId] = {
                 members: members,
                 connections: newConn ? { [newConn.peer]: newConn } : {},
-                domElement: null
+                domElement: null,
+                mediaRecorder: null,
+                audioChunks: []
             };
 
             const panel = document.createElement('div');
@@ -382,7 +404,8 @@
                     <div class="chat-window"></div>
                     <div class="chat-input-area">
                         <input type="text" placeholder="Enter text">
-                        <button class="action-btn">TX</button>
+                        <button class="action-btn mic-btn" title="Click to Start/Stop Recording">🎤</button>
+                        <button class="action-btn tx-btn">TX</button>
                     </div>
                 </div>
             `;
@@ -391,9 +414,11 @@
             chatsContainer.prepend(panel);
 
             const inputField = panel.querySelector('input');
-            const sendButton = panel.querySelector('.action-btn');
+            const sendButton = panel.querySelector('.tx-btn');
+            const micButton = panel.querySelector('.mic-btn');
             const chatWindow = panel.querySelector('.chat-window');
 
+            // --- Send Text Logic ---
             const triggerSend = () => {
                 const text = inputField.value.trim();
                 if (text) {
@@ -405,18 +430,81 @@
                             sentToAnyone = true;
                         }
                     }
+                    
                     if (sentToAnyone) {
-                        appendMsgToDOM(chatWindow, text, 'sent');
-                        saveMessageToStorage(groupId, text, 'sent');
-                        inputField.value = '';
+                        appendMsgToDOM(chatWindow, text, 'sent', false, '');
+                        saveMessageToStorage(groupId, text, 'sent', false, '');
                     } else {
-                        appendMsgToDOM(chatWindow, "ERR: Node offline.", 'system');
+                        // Failed State - Red Bubble
+                        appendMsgToDOM(chatWindow, text, 'failed', false, '');
+                        saveMessageToStorage(groupId, text, 'failed', false, '');
                     }
+                    inputField.value = '';
                 }
             };
 
             sendButton.onclick = triggerSend;
             inputField.onkeypress = (e) => { if (e.key === 'Enter') triggerSend(); };
+
+            // --- Voice Recording Logic ---
+            micButton.onclick = async () => {
+                const groupData = activeConversations[groupId];
+                
+                if (micButton.classList.contains('recording')) {
+                    // STOP RECORDING
+                    groupData.mediaRecorder.stop();
+                    micButton.classList.remove('recording');
+                    micButton.innerText = '🎤';
+                } else {
+                    // START RECORDING
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        groupData.mediaRecorder = new MediaRecorder(stream);
+                        groupData.audioChunks = [];
+                        
+                        groupData.mediaRecorder.ondataavailable = e => groupData.audioChunks.push(e.data);
+                        groupData.mediaRecorder.onstop = () => {
+                            const blob = new Blob(groupData.audioChunks, { type: 'audio/webm' });
+                            const reader = new FileReader();
+                            
+                            // Convert Audio Blob to Base64 String to send safely inside JSON
+                            reader.readAsDataURL(blob);
+                            reader.onloadend = () => {
+                                const base64Audio = reader.result;
+                                sendAudioData(base64Audio);
+                                // Shut off the microphone completely to remove browser dot
+                                stream.getTracks().forEach(track => track.stop());
+                            };
+                        };
+                        
+                        groupData.mediaRecorder.start();
+                        micButton.classList.add('recording');
+                        micButton.innerText = '🛑';
+                    } catch (err) {
+                        alert("Microphone access denied. Enable permissions to send voice notes.");
+                    }
+                }
+            };
+
+            const sendAudioData = (base64Audio) => {
+                let sentToAnyone = false;
+                for (const peerId in activeConversations[groupId].connections) {
+                    const conn = activeConversations[groupId].connections[peerId];
+                    if (conn && conn.open) {
+                        conn.send(JSON.stringify({ type: 'audio', data: base64Audio }));
+                        sentToAnyone = true;
+                    }
+                }
+                
+                if (sentToAnyone) {
+                    appendMsgToDOM(chatWindow, base64Audio, 'sent', true, '');
+                    saveMessageToStorage(groupId, base64Audio, 'sent', true, '');
+                } else {
+                    // Failed State - Red Bubble around Audio
+                    appendMsgToDOM(chatWindow, base64Audio, 'failed', true, '');
+                    saveMessageToStorage(groupId, base64Audio, 'failed', true, '');
+                }
+            }
 
             if (newConn) setupActiveChat(groupId, newConn);
         }
@@ -445,16 +533,13 @@
             if (confirm("Permanently burn this chat for all users?")) {
                 const group = activeConversations[groupId];
                 if (group) {
-                    // Send kill signal to all connected peers
                     for (const peerId in group.connections) {
                         const conn = group.connections[peerId];
                         if (conn && conn.open) {
                             conn.send(JSON.stringify({ type: 'system', action: 'burn' }));
-                            // Slight delay to ensure message transmission before dropping socket
                             setTimeout(() => { if (conn) conn.close(); }, 500); 
                         }
                     }
-                    // Destroy locally
                     destroyChatLocal(groupId);
                 }
             }
@@ -470,7 +555,7 @@
                 delete chatHistory[groupId];
                 
                 localStorage.setItem('p2p_chat_names', JSON.stringify(chatNames));
-                localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
+                localStorage.setItem('p2p_history_v2', JSON.stringify(chatHistory));
             }
 
             if (Object.keys(activeConversations).length === 0 && emptyState) {
@@ -481,23 +566,29 @@
         function setupActiveChat(groupId, conn) {
             conn.on('data', (data) => {
                 const msg = JSON.parse(data);
+                const panel = activeConversations[groupId].domElement;
+                const chatWindow = panel.querySelector('.chat-window');
                 
                 if (msg.type === 'chat') {
-                    const panel = activeConversations[groupId].domElement;
-                    const chatWindow = panel.querySelector('.chat-window');
-                    
                     const prefix = activeConversations[groupId].members.length > 1 ? `[${conn.peer}]: ` : '';
-                    const fullText = prefix + msg.text;
-                    
-                    appendMsgToDOM(chatWindow, fullText, 'received');
-                    saveMessageToStorage(groupId, fullText, 'received');
+                    appendMsgToDOM(chatWindow, msg.text, 'received', false, prefix);
+                    saveMessageToStorage(groupId, msg.text, 'received', false, prefix);
 
                     if (document.hidden && Notification.permission === "granted") {
-                        new Notification("Burner Chat", { body: fullText });
+                        new Notification("Burner Chat", { body: prefix + msg.text });
                     }
                 } 
+                else if (msg.type === 'audio') {
+                    const prefix = activeConversations[groupId].members.length > 1 ? `[${conn.peer}]: ` : '';
+                    // The 'data' contains the Base64 URL 
+                    appendMsgToDOM(chatWindow, msg.data, 'received', true, prefix);
+                    saveMessageToStorage(groupId, msg.data, 'received', true, prefix);
+
+                    if (document.hidden && Notification.permission === "granted") {
+                        new Notification("Burner Chat", { body: prefix + "🎤 Voice Message" });
+                    }
+                }
                 else if (msg.type === 'system' && msg.action === 'burn') {
-                    // Receive the kill signal and destroy the chat locally
                     if (Notification.permission === "granted") {
                         new Notification("Burner Chat", { body: "A conversation was burned." });
                     }
@@ -521,10 +612,20 @@
             dot.style.backgroundColor = hasActiveConn ? '#34c759' : '#ff453a'; 
         }
 
-        function appendMsgToDOM(container, text, type) {
+        // --- Unified DOM Renderer ---
+        function appendMsgToDOM(container, content, type, isAudio = false, prefix = '') {
             const div = document.createElement('div');
             div.className = `msg ${type}`;
-            div.innerText = text;
+            
+            if (isAudio) {
+                // Render an HTML5 Audio Player
+                const prefixHtml = prefix ? `<div style="font-size:10px; opacity:0.7; margin-bottom: 4px;">${prefix}</div>` : '';
+                div.innerHTML = `${prefixHtml}<audio controls src="${content}" style="height: 35px; max-width: 220px; outline: none;"></audio>`;
+            } else {
+                // Render standard text
+                div.innerText = prefix + content;
+            }
+
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
