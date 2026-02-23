@@ -58,9 +58,7 @@
 
         /* Main Content */
         main { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
-        .section { background: var(--card-bg); border-radius: 12px; padding: 15px; border: 1px solid var(--border); }
-        h2 { font-size: 14px; font-weight: bold; margin-bottom: 12px; text-transform: uppercase; color: var(--text-muted); }
-
+        
         /* Inputs & Buttons */
         input[type="text"] {
             width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
@@ -146,10 +144,8 @@
     <main>
         <div id="status-bar">Network Status: Connecting...</div>
 
-        <div id="view-chats">
-            <div id="active-chats-container">
-                <p style="text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 20px;">No active connections.</p>
-            </div>
+        <div id="active-chats-container">
+            <p id="empty-state" style="text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 20px;">No active connections.</p>
         </div>
 
         <div class="donkey-footer">powered by donkey👹</div>
@@ -229,14 +225,22 @@
         const myId = getDeviceId();
         document.getElementById('my-id-display').innerText = `ID: ${myId}`;
 
-        // Data Models
+        // Persistent Data Models
         let chatNames = JSON.parse(localStorage.getItem('p2p_chat_names')) || {}; 
+        let chatHistory = JSON.parse(localStorage.getItem('p2p_history')) || {}; 
         let activeConversations = {}; 
         let peer = null;
         let pendingConnection = null;
 
         const statusBar = document.getElementById('status-bar');
         const chatsContainer = document.getElementById('active-chats-container');
+        const emptyState = document.getElementById('empty-state');
+
+        function saveMessageToStorage(groupId, text, type) {
+            if (!chatHistory[groupId]) chatHistory[groupId] = [];
+            chatHistory[groupId].push({ text, type });
+            localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
+        }
 
         // --- Settings & Menus ---
         document.getElementById('settings-btn').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
@@ -254,18 +258,58 @@
             if (e.target.checked) Notification.requestPermission();
         };
 
-        // --- WebRTC Setup ---
+        // --- WebRTC Setup & Boot Restore ---
         peer = new Peer(myId);
-        peer.on('open', () => { statusBar.innerText = "SYS: ONLINE"; });
+        
+        peer.on('open', () => { 
+            statusBar.innerText = "SYS: ONLINE"; 
+            restoreSavedChats();
+        });
+
+        function restoreSavedChats() {
+            for (const groupId in chatHistory) {
+                const members = groupId.split(',');
+                // 1. Build the UI from memory (passed false to keep it collapsed initially)
+                createOrUpdateConversation(members, null, false);
+                
+                // 2. Populate history
+                const chatWindow = activeConversations[groupId].domElement.querySelector('.chat-window');
+                chatHistory[groupId].forEach(msg => appendMsgToDOM(chatWindow, msg.text, msg.type));
+
+                // 3. Attempt silent background reconnect
+                members.forEach(targetId => {
+                    const conn = peer.connect(targetId);
+                    conn.on('open', () => { conn.send(JSON.stringify({ type: 'system', action: 'request' })); });
+                    conn.on('data', (data) => handleConnectionData(groupId, conn, data));
+                });
+            }
+        }
 
         // --- Handling Connections ---
         peer.on('connection', (conn) => {
-            pendingConnection = conn;
             conn.on('data', (data) => {
                 const msg = JSON.parse(data);
                 if (msg.type === 'system' && msg.action === 'request') {
-                    document.getElementById('request-text').innerText = `${conn.peer} is establishing link.`;
-                    document.getElementById('request-modal').classList.remove('hidden');
+                    
+                    // Check if this person is already in our saved active conversations
+                    let isKnown = false;
+                    for (let gId in activeConversations) {
+                        if (activeConversations[gId].members.includes(conn.peer)) {
+                            isKnown = gId;
+                            break;
+                        }
+                    }
+
+                    if (isKnown) {
+                        // Silent Auto-Accept for returning users
+                        conn.send(JSON.stringify({ type: 'system', action: 'accept' }));
+                        createOrUpdateConversation(activeConversations[isKnown].members, conn, false);
+                    } else {
+                        // New user, show Modal
+                        pendingConnection = conn;
+                        document.getElementById('request-text').innerText = `${conn.peer} is establishing link.`;
+                        document.getElementById('request-modal').classList.remove('hidden');
+                    }
                 }
             });
         });
@@ -273,7 +317,7 @@
         document.getElementById('accept-btn').onclick = () => {
             if (pendingConnection) {
                 pendingConnection.send(JSON.stringify({ type: 'system', action: 'accept' }));
-                createOrUpdateConversation([pendingConnection.peer], pendingConnection);
+                createOrUpdateConversation([pendingConnection.peer], pendingConnection, true);
                 document.getElementById('request-modal').classList.add('hidden');
                 pendingConnection = null;
             }
@@ -303,23 +347,25 @@
             }
 
             statusBar.innerText = `SYS: Routing to ${members.length} node(s)...`;
-            createOrUpdateConversation(members, null); 
+            createOrUpdateConversation(members, null, true); 
 
             members.forEach(targetId => {
                 const conn = peer.connect(targetId);
                 conn.on('open', () => { conn.send(JSON.stringify({ type: 'system', action: 'request' })); });
-                conn.on('data', (data) => {
-                    const msg = JSON.parse(data);
-                    if (msg.type === 'system' && msg.action === 'accept') {
-                        createOrUpdateConversation(members, conn); 
-                        statusBar.innerText = "SYS: ONLINE";
-                    }
-                });
+                conn.on('data', (data) => handleConnectionData(groupId, conn, data));
             });
         }
 
+        function handleConnectionData(groupId, conn, data) {
+            const msg = JSON.parse(data);
+            if (msg.type === 'system' && msg.action === 'accept') {
+                createOrUpdateConversation(activeConversations[groupId].members, conn, false); 
+                statusBar.innerText = "SYS: ONLINE";
+            }
+        }
+
         // --- Dynamic UI: Conversation Bars ---
-        function createOrUpdateConversation(members, newConn) {
+        function createOrUpdateConversation(members, newConn, expandDefault = false) {
             const groupId = members.sort().join(',');
             
             if (activeConversations[groupId]) {
@@ -331,11 +377,15 @@
                 return;
             }
 
-            if (Object.keys(activeConversations).length === 0) chatsContainer.innerHTML = '';
+            if (emptyState) emptyState.style.display = 'none';
 
-            // Determine Name
-            const defaultName = members.join(', ');
-            const displayName = chatNames[groupId] || defaultName;
+            // Ensure history object exists
+            if (!chatHistory[groupId]) {
+                chatHistory[groupId] = [];
+                localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
+            }
+
+            const displayName = chatNames[groupId] || members.join(', ');
 
             activeConversations[groupId] = {
                 members: members,
@@ -344,7 +394,7 @@
             };
 
             const panel = document.createElement('div');
-            panel.className = 'chat-container expanded';
+            panel.className = `chat-container ${expandDefault ? 'expanded' : ''}`;
             
             panel.innerHTML = `
                 <div class="chat-header">
@@ -354,7 +404,7 @@
                         <span style="font-size:10px; opacity:0.5;">✎</span>
                     </div>
                     <div class="chat-controls">
-                        <button class="control-icon" onclick="toggleChat(this)">▲</button>
+                        <button class="control-icon" onclick="toggleChat(this)">${expandDefault ? '▲' : '▼'}</button>
                         <button class="control-icon red" onclick="deleteChat('${groupId}')">✖</button>
                     </div>
                 </div>
@@ -386,10 +436,11 @@
                         }
                     }
                     if (sentToAnyone) {
-                        appendMsg(chatWindow, text, 'sent');
+                        appendMsgToDOM(chatWindow, text, 'sent');
+                        saveMessageToStorage(groupId, text, 'sent');
                         inputField.value = '';
                     } else {
-                        appendMsg(chatWindow, "ERR: Node offline.", 'system');
+                        appendMsgToDOM(chatWindow, "ERR: Node offline.", 'system');
                     }
                 }
             };
@@ -423,21 +474,24 @@
             if (confirm("Permanently burn this chat?")) {
                 const group = activeConversations[groupId];
                 if (group) {
-                    // Close connections
+                    // 1. Close connections
                     for (const peerId in group.connections) {
                         if (group.connections[peerId]) group.connections[peerId].close();
                     }
-                    // Remove UI
+                    // 2. Remove UI
                     if (group.domElement) group.domElement.remove();
                     
-                    // Clear Data
+                    // 3. Scrub LocalStorage Data
                     delete activeConversations[groupId];
                     delete chatNames[groupId];
+                    delete chatHistory[groupId];
+                    
                     localStorage.setItem('p2p_chat_names', JSON.stringify(chatNames));
+                    localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
                 }
 
-                if (Object.keys(activeConversations).length === 0) {
-                    chatsContainer.innerHTML = '<p style="text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 20px;">No active connections.</p>';
+                if (Object.keys(activeConversations).length === 0 && emptyState) {
+                    emptyState.style.display = 'block';
                 }
             }
         };
@@ -450,28 +504,34 @@
                     const chatWindow = panel.querySelector('.chat-window');
                     
                     const prefix = activeConversations[groupId].members.length > 1 ? `[${conn.peer}]: ` : '';
-                    appendMsg(chatWindow, prefix + msg.text, 'received');
+                    const fullText = prefix + msg.text;
+                    
+                    appendMsgToDOM(chatWindow, fullText, 'received');
+                    saveMessageToStorage(groupId, fullText, 'received');
 
                     if (document.hidden && Notification.permission === "granted") {
-                        new Notification("Burner Chat", { body: prefix + msg.text });
+                        new Notification("Burner Chat", { body: fullText });
                     }
                 }
             });
 
             conn.on('close', () => {
-                delete activeConversations[groupId].connections[conn.peer];
-                updateChatHeaderStatus(groupId);
+                if(activeConversations[groupId] && activeConversations[groupId].connections[conn.peer]) {
+                    delete activeConversations[groupId].connections[conn.peer];
+                    updateChatHeaderStatus(groupId);
+                }
             });
         }
 
         function updateChatHeaderStatus(groupId) {
             const group = activeConversations[groupId];
+            if(!group || !group.domElement) return;
             const dot = group.domElement.querySelector('.status-dot');
             const hasActiveConn = Object.keys(group.connections).length > 0;
             dot.style.backgroundColor = hasActiveConn ? '#34c759' : '#ff453a'; 
         }
 
-        function appendMsg(container, text, type) {
+        function appendMsgToDOM(container, text, type) {
             const div = document.createElement('div');
             div.className = `msg ${type}`;
             div.innerText = text;
