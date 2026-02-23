@@ -53,8 +53,7 @@
 
         .header-center { text-align: center; }
         .app-title { font-size: 16px; font-weight: bold; letter-spacing: 2px; }
-        .id-display { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
-        #countdown-timer { font-size: 11px; color: var(--red); margin-top: 4px; }
+        .id-display { font-size: 14px; color: var(--text-muted); margin-top: 6px; }
 
         /* Main Content */
         main { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
@@ -136,7 +135,6 @@
         <div class="header-center">
             <div class="app-title">BURNER CHAT</div>
             <div class="id-display" id="my-id-display">ID: Loading...</div>
-            <div id="countdown-timer">--:--:--</div>
         </div>
         <button id="settings-btn" class="icon-btn">⚙</button>
     </header>
@@ -191,27 +189,6 @@
 
     <script>
         // --- Core Helpers & Setup ---
-        function checkAndResetDaily() {
-            const todayStr = new Date().toLocaleDateString();
-            if (localStorage.getItem('p2p_date') !== todayStr) {
-                localStorage.clear();
-                localStorage.setItem('p2p_date', todayStr);
-            }
-        }
-        checkAndResetDaily();
-
-        setInterval(() => {
-            const now = new Date();
-            const midnight = new Date();
-            midnight.setHours(24, 0, 0, 0);
-            const diff = midnight - now;
-            const h = String(Math.floor((diff / 3600000) % 24)).padStart(2, '0');
-            const m = String(Math.floor((diff / 60000) % 60)).padStart(2, '0');
-            const s = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
-            document.getElementById('countdown-timer').innerText = `BURN IN ${h}:${m}:${s}`;
-            if (diff <= 1000) location.reload();
-        }, 1000);
-
         function getDeviceId() {
             let id = localStorage.getItem('p2p_id');
             if (!id) {
@@ -269,14 +246,11 @@
         function restoreSavedChats() {
             for (const groupId in chatHistory) {
                 const members = groupId.split(',');
-                // 1. Build the UI from memory (passed false to keep it collapsed initially)
                 createOrUpdateConversation(members, null, false);
                 
-                // 2. Populate history
                 const chatWindow = activeConversations[groupId].domElement.querySelector('.chat-window');
                 chatHistory[groupId].forEach(msg => appendMsgToDOM(chatWindow, msg.text, msg.type));
 
-                // 3. Attempt silent background reconnect
                 members.forEach(targetId => {
                     const conn = peer.connect(targetId);
                     conn.on('open', () => { conn.send(JSON.stringify({ type: 'system', action: 'request' })); });
@@ -291,7 +265,6 @@
                 const msg = JSON.parse(data);
                 if (msg.type === 'system' && msg.action === 'request') {
                     
-                    // Check if this person is already in our saved active conversations
                     let isKnown = false;
                     for (let gId in activeConversations) {
                         if (activeConversations[gId].members.includes(conn.peer)) {
@@ -301,11 +274,9 @@
                     }
 
                     if (isKnown) {
-                        // Silent Auto-Accept for returning users
                         conn.send(JSON.stringify({ type: 'system', action: 'accept' }));
                         createOrUpdateConversation(activeConversations[isKnown].members, conn, false);
                     } else {
-                        // New user, show Modal
                         pendingConnection = conn;
                         document.getElementById('request-text').innerText = `${conn.peer} is establishing link.`;
                         document.getElementById('request-modal').classList.remove('hidden');
@@ -379,7 +350,6 @@
 
             if (emptyState) emptyState.style.display = 'none';
 
-            // Ensure history object exists
             if (!chatHistory[groupId]) {
                 chatHistory[groupId] = [];
                 localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
@@ -470,35 +440,48 @@
             }
         };
 
+        // THE MUTUAL BURN PROTOCOL
         window.deleteChat = (groupId) => {
-            if (confirm("Permanently burn this chat?")) {
+            if (confirm("Permanently burn this chat for all users?")) {
                 const group = activeConversations[groupId];
                 if (group) {
-                    // 1. Close connections
+                    // Send kill signal to all connected peers
                     for (const peerId in group.connections) {
-                        if (group.connections[peerId]) group.connections[peerId].close();
+                        const conn = group.connections[peerId];
+                        if (conn && conn.open) {
+                            conn.send(JSON.stringify({ type: 'system', action: 'burn' }));
+                            // Slight delay to ensure message transmission before dropping socket
+                            setTimeout(() => { if (conn) conn.close(); }, 500); 
+                        }
                     }
-                    // 2. Remove UI
-                    if (group.domElement) group.domElement.remove();
-                    
-                    // 3. Scrub LocalStorage Data
-                    delete activeConversations[groupId];
-                    delete chatNames[groupId];
-                    delete chatHistory[groupId];
-                    
-                    localStorage.setItem('p2p_chat_names', JSON.stringify(chatNames));
-                    localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
-                }
-
-                if (Object.keys(activeConversations).length === 0 && emptyState) {
-                    emptyState.style.display = 'block';
+                    // Destroy locally
+                    destroyChatLocal(groupId);
                 }
             }
         };
 
+        function destroyChatLocal(groupId) {
+            const group = activeConversations[groupId];
+            if (group) {
+                if (group.domElement) group.domElement.remove();
+                
+                delete activeConversations[groupId];
+                delete chatNames[groupId];
+                delete chatHistory[groupId];
+                
+                localStorage.setItem('p2p_chat_names', JSON.stringify(chatNames));
+                localStorage.setItem('p2p_history', JSON.stringify(chatHistory));
+            }
+
+            if (Object.keys(activeConversations).length === 0 && emptyState) {
+                emptyState.style.display = 'block';
+            }
+        }
+
         function setupActiveChat(groupId, conn) {
             conn.on('data', (data) => {
                 const msg = JSON.parse(data);
+                
                 if (msg.type === 'chat') {
                     const panel = activeConversations[groupId].domElement;
                     const chatWindow = panel.querySelector('.chat-window');
@@ -512,6 +495,13 @@
                     if (document.hidden && Notification.permission === "granted") {
                         new Notification("Burner Chat", { body: fullText });
                     }
+                } 
+                else if (msg.type === 'system' && msg.action === 'burn') {
+                    // Receive the kill signal and destroy the chat locally
+                    if (Notification.permission === "granted") {
+                        new Notification("Burner Chat", { body: "A conversation was burned." });
+                    }
+                    destroyChatLocal(groupId);
                 }
             });
 

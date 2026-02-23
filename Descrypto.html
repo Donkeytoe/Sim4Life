@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Inscryption: Dark Engine</title>
+<style>
+    /* Dark, Minimal, Liquid Glass Theme */
+    body { background-color: #050000; color: #ffcccc; font-family: 'Courier New', Courier, monospace; text-align: center; margin: 0; padding: 10px; touch-action: manipulation; overflow-x: hidden;}
+    h1, h2 { margin: 5px 0; font-size: 1.2rem; color: #ff4444; text-shadow: 0 0 5px rgba(255, 0, 0, 0.5); }
+    
+    /* Navigation */
+    nav { margin-bottom: 15px; display: flex; justify-content: center; flex-wrap: wrap; gap: 5px;}
+    button { background: rgba(60, 0, 0, 0.4); color: #ffaaaa; border: 1px solid #880000; padding: 10px 15px; border-radius: 12px; font-size: 1rem; cursor: pointer; backdrop-filter: blur(5px); transition: 0.2s; }
+    button:active { background: rgba(100, 0, 0, 0.6); box-shadow: 0 0 10px #ff0000; }
+    .btn-danger { background: rgba(120, 0, 0, 0.5); border-color: #ff0000; }
+    
+    /* Panels (Liquid Glass) */
+    .panel { background: rgba(20, 0, 0, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 50, 50, 0.2); padding: 15px; margin: 15px auto; max-width: 500px; border-radius: 16px; box-shadow: 0 4px 30px rgba(100, 0, 0, 0.1); }
+    
+    /* Cards */
+    .card-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .card { background: rgba(10, 0, 0, 0.8); color: #ffaaaa; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 6px; box-sizing: border-box; border: 1px solid #550000; box-shadow: inset 0 0 10px rgba(255,0,0,0.05), 0 2px 5px rgba(0,0,0,0.8); cursor: pointer; transition: 0.2s; position: relative; overflow: hidden;}
+    .card .name { font-size: 0.55rem; text-transform: uppercase; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
+    .card .cost { font-size: 0.55rem; color: #ff4444; width: 100%; text-align: center; }
+    .card .emoji { font-size: 1.4rem; margin: auto; text-shadow: 0 0 10px rgba(255,255,255,0.2); line-height: 1; }
+    .card .sigils { font-size: 0.45rem; color: #ff8888; font-weight: bold; width: 100%; text-align: center; line-height: 1.1; min-height: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal;}
+    .card .stats { font-size: 0.8rem; display: flex; justify-content: space-between; width: 100%; font-weight: bold; padding: 0 2px; box-sizing: border-box;}
+    .card.selected { border-color: #ff0000; box-shadow: 0 0 15px rgba(255, 0, 0, 0.8); transform: scale(1.05); }
+
+    /* Map Nodes */
+    #map-nodes { display: flex; flex-direction: column-reverse; gap: 10px; align-items: center; margin-bottom: 20px; }
+    .node { width: 80%; padding: 15px; background: rgba(30, 0, 0, 0.5); border: 1px solid #440000; cursor: pointer; border-radius: 12px; font-weight: bold; color: #cc8888; backdrop-filter: blur(5px); }
+    .node.active { border-color: #ff0000; color: #ffaaaa; box-shadow: 0 0 15px rgba(255, 0, 0, 0.4); }
+    .node.completed { opacity: 0.2; pointer-events: none; }
+
+    /* Combat Screen */
+    #combat-screen, #index-screen { display: none; }
+    #scale { font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; color: #ff4444; text-shadow: 0 0 10px #ff0000; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; max-width: 400px; margin: 0 auto 20px auto; }
+    .row-label { grid-column: span 4; text-align: left; font-size: 0.7rem; color: #884444; margin-top: 5px; border-bottom: 1px solid #330000; }
+    .slot { width: 100%; aspect-ratio: 1 / 1.3; background: rgba(20, 0, 0, 0.4); border: 1px dashed #550000; border-radius: 12px; display: flex; justify-content: center; align-items: center; }
+    .slot .card { width: 95%; height: 95%; }
+    #hand { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; max-width: 400px; margin: 0 auto 20px auto; min-height: 100px; }
+    #hand .card { width: 70px; height: 105px; }
+    #status { color: #ffaaaa; min-height: 20px; font-weight: bold; margin-bottom: 10px; }
+
+    /* Index */
+    .guide-text { text-align: left; font-size: 0.9rem; line-height: 1.4; color: #ffcccc; }
+    .guide-text strong { color: #ff4444; }
+
+    /* Popup Toast Notification */
+    #toast {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+        background: rgba(80, 0, 0, 0.9); color: #ffcccc; padding: 20px 40px; border: 2px solid #ff4444;
+        border-radius: 16px; font-size: 1.5rem; font-weight: bold; text-shadow: 0 0 10px #ff0000;
+        box-shadow: 0 0 40px rgba(255, 0, 0, 0.8); backdrop-filter: blur(10px); opacity: 0; pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<nav id="main-nav">
+    <button onclick="switchTab('map')">Map</button>
+    <button onclick="switchTab('index')">Index</button>
+    <button onclick="resetGame()" class="btn-danger">Reset Run</button>
+</nav>
+
+<div id="map-screen">
+    <h1>Map Level: <span id="map-level">1</span></h1>
+    <div class="panel">
+        <h2>Your Deck (<span id="deck-count">0</span>)</h2>
+        <div id="deck-container" class="card-container" style="transform: scale(0.9); transform-origin: top center;"></div>
+    </div>
+    <div id="action-panel" class="panel">
+        <h2 id="action-title">The Path</h2>
+        <div id="action-content">
+            <div id="map-nodes"></div>
+        </div>
+    </div>
+</div>
+
+<div id="index-screen" class="panel guide-text">
+    <h2>Rulebook</h2>
+    <p><strong>The Scale:</strong> Win by tipping the scale to +5 damage. You lose at -5.</p>
+    <p><strong>Blood:</strong> Sacrificing an allied beast yields 1 Blood.</p>
+    <hr style="border-color: #550000;">
+    <h2>Sigil Index</h2>
+    <ul>
+        <li><strong>Airborne:</strong> Ignores opposing beasts and strikes the scale directly.</li>
+        <li><strong>Mighty Leap:</strong> Blocks opposing Airborne beasts.</li>
+        <li><strong>Touch of Death:</strong> Instantly kills the opposing beast.</li>
+        <li><strong>Bifurcated Strike:</strong> Strikes the opposing spaces to the left and right.</li>
+        <li><strong>Unkillable:</strong> When this beast perishes, a copy returns to your hand.</li>
+    </ul>
+</div>
+
+<div id="combat-screen">
+    <h1>Battle</h1>
+    <div id="scale">Scale: ⚖️ 0 (0/5)</div>
+    <div id="status">Draw a card to begin.</div>
+    <div>
+        <button onclick="drawCard('squirrel')">Draw Squirrel (🐿️)</button>
+        <button onclick="drawCard('main')">Draw Deck (<span id="draw-pile-count">0</span>)</button>
+        <button onclick="endTurn()" style="border-color: #ff0000; color: #fff; background: rgba(150,0,0,0.5);">End Turn</button>
+    </div>
+
+    <div class="grid" id="board">
+        <div class="row-label">Opponent Intent</div>
+        <div class="slot" id="q-0"></div><div class="slot" id="q-1"></div><div class="slot" id="q-2"></div><div class="slot" id="q-3"></div>
+        
+        <div class="row-label">Opponent Board</div>
+        <div class="slot" id="e-0"></div><div class="slot" id="e-1"></div><div class="slot" id="e-2"></div><div class="slot" id="e-3"></div>
+        
+        <div class="row-label">Your Board (Tap to Place/Sacrifice)</div>
+        <div class="slot" id="p-0" onclick="handleSlotTap(0)"></div>
+        <div class="slot" id="p-1" onclick="handleSlotTap(1)"></div>
+        <div class="slot" id="p-2" onclick="handleSlotTap(2)"></div>
+        <div class="slot" id="p-3" onclick="handleSlotTap(3)"></div>
+    </div>
+    <div id="hand"></div>
+</div>
+
+<script>
+    /* --- DATABASE --- */
+    const baseCards = [
+        { name: "Stoat", emoji: "🦦", power: 1, health: 2, maxHealth: 2, cost: 1, sigils: [] },
+        { name: "Wolf", emoji: "🐺", power: 3, health: 2, maxHealth: 2, cost: 2, sigils: [] },
+        { name: "Bullfrog", emoji: "🐸", power: 1, health: 2, maxHealth: 2, cost: 1, sigils: ["Mighty Leap"] },
+        { name: "Raven", emoji: "🐦‍⬛", power: 2, health: 3, maxHealth: 3, cost: 2, sigils: ["Airborne"] },
+        { name: "Mantis", emoji: "🦗", power: 1, health: 1, maxHealth: 1, cost: 1, sigils: ["Bifurcated Strike"] },
+        { name: "Adder", emoji: "🐍", power: 1, health: 1, maxHealth: 1, cost: 2, sigils: ["Touch of Death"] },
+        { name: "Cockroach", emoji: "🪳", power: 1, health: 1, maxHealth: 1, cost: 1, sigils: ["Unkillable"] }
+    ];
+    const sigilPool = ["Airborne", "Mighty Leap", "Touch of Death", "Bifurcated Strike", "Unkillable"];
+
+    /* --- MASTER STATE --- */
+    let playerDeck = [];
+    let uidCounter = 1;
+    let mapPath = [];
+    let currentNodeIndex = 0;
+    let mapLevel = 1;
+    let isTransitioning = false;
+    
+    // Combat State
+    let drawPile = [], hand = [], playerBoard = [null, null, null, null], enemyBoard = [null, null, null, null], enemyQueue = [null, null, null, null];
+    let scale = 0, phase = "DRAW", selectedCardIndex = null, bloodPool = 0;
+
+    /* --- SAVE / LOAD SYSTEM --- */
+    function saveProgress() {
+        const saveData = {
+            playerDeck: playerDeck,
+            uidCounter: uidCounter,
+            mapPath: mapPath,
+            currentNodeIndex: currentNodeIndex,
+            mapLevel: mapLevel
+        };
+        localStorage.setItem("inscryptionSave", JSON.stringify(saveData));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem("inscryptionSave");
+        if (saved) {
+            const data = JSON.parse(saved);
+            playerDeck = data.playerDeck;
+            uidCounter = data.uidCounter;
+            mapPath = data.mapPath;
+            currentNodeIndex = data.currentNodeIndex;
+            mapLevel = data.mapLevel;
+            return true;
+        }
+        return false;
+    }
+
+    function resetGame() {
+        if(confirm("Are you sure you want to sacrifice this run? All progress will be lost in the darkness.")) {
+            localStorage.removeItem("inscryptionSave");
+            location.reload();
+        }
+    }
+
+    /* --- HELPERS --- */
+    function showToast(msg, duration = 1500, callback = null) {
+        const toast = document.getElementById("toast");
+        toast.innerText = msg;
+        toast.classList.add("show");
+        isTransitioning = true;
+        
+        setTimeout(() => {
+            toast.classList.remove("show");
+            if(callback) setTimeout(callback, 300);
+            else isTransitioning = false;
+        }, duration);
+    }
+
+    function switchTab(tab) {
+        if(document.getElementById("combat-screen").style.display === "block" || isTransitioning) return;
+        document.getElementById("map-screen").style.display = tab === 'map' ? "block" : "none";
+        document.getElementById("index-screen").style.display = tab === 'index' ? "block" : "none";
+    }
+
+    function renderCardHTML(card, onClick, isSelected = false) {
+        let selClass = isSelected ? " selected" : "";
+        let sigilText = card.sigils ? card.sigils.join(", ") : "";
+        let costStr = card.cost > 0 ? Array(card.cost).fill("🩸").join("") : "Free";
+        return `
+            <div class="card${selClass}" onclick="${onClick}" style="width: 70px; height: 105px;">
+                <span class="name">${card.name}</span>
+                <span class="cost">${costStr}</span>
+                <span class="emoji">${card.emoji}</span>
+                <span class="sigils">${sigilText}</span>
+                <div class="stats"><span>🗡️${card.power}</span><span>❤️${card.health}</span></div>
+            </div>
+        `;
+    }
+
+    /* --- METAGAME --- */
+    function bootGame() {
+        if (loadProgress()) {
+            // Rebuild UI from save
+            document.getElementById("map-level").innerText = mapLevel;
+            renderDeck();
+            refreshMapUI();
+        } else {
+            // Generate entirely new run
+            playerDeck = [
+                {...baseCards[0], uid: uidCounter++}, 
+                {...baseCards[2], uid: uidCounter++}, 
+                {...baseCards[1], uid: uidCounter++}
+            ];
+            generateNewMap();
+        }
+    }
+
+    function generateNewMap() {
+        document.getElementById("map-level").innerText = mapLevel;
+        currentNodeIndex = 0;
+        const nodeTypes = ["Card Draft", "Mycologist", "Combat", "Card Draft", "Boss Battle"];
+        mapPath = nodeTypes.map((type, i) => ({ id: i, type: type, completed: false }));
+        saveProgress();
+        renderDeck();
+        refreshMapUI();
+    }
+
+    function refreshMapUI() {
+        document.getElementById("action-title").innerText = "The Path";
+        document.getElementById("action-content").innerHTML = `<div id="map-nodes"></div>`;
+        setTimeout(renderMap, 50);
+    }
+
+    function renderDeck() {
+        document.getElementById("deck-count").innerText = playerDeck.length;
+        document.getElementById("deck-container").innerHTML = playerDeck.map(c => renderCardHTML(c, "")).join("");
+    }
+
+    function renderMap() {
+        const container = document.getElementById("map-nodes");
+        if(!container) return;
+        container.innerHTML = mapPath.map((node, i) => {
+            let classes = "node" + (node.completed ? " completed" : (i === currentNodeIndex ? " active" : ""));
+            return `<div class="${classes}" onclick="triggerNode(${i})">${node.type}</div>`;
+        }).join("");
+    }
+
+    function triggerNode(index) {
+        if (index !== currentNodeIndex || isTransitioning) return;
+        let node = mapPath[index];
+        const content = document.getElementById("action-content");
+        document.getElementById("action-title").innerText = node.type;
+
+        if (node.type === "Card Draft") {
+            let options = Array(3).fill().map(() => {
+                let card = JSON.parse(JSON.stringify(baseCards[Math.floor(Math.random() * baseCards.length)]));
+                card.uid = uidCounter++;
+                if (Math.random() > 0.6) card.sigils.push(sigilPool[Math.floor(Math.random() * sigilPool.length)]);
+                return card;
+            });
+            window.draftOptions = options;
+            content.innerHTML = `<div class="card-container">` + options.map((c, idx) => renderCardHTML(c, `selectDraft(${idx})`)).join("") + `</div>`;
+        } 
+        else if (node.type === "Mycologist") {
+            window.mycoSelection = [];
+            content.innerHTML = `<p style="font-size:0.8rem;">Select two to fuse.</p><div class="card-container" style="transform: scale(0.9);">` + playerDeck.map((c, idx) => renderCardHTML(c, `selectMyco(${idx})`)).join("") + `</div>`;
+        }
+        else if (node.type === "Combat" || node.type === "Boss Battle") {
+            content.innerHTML = `<button onclick="startCombat()">Enter the Darkness</button>`;
+        }
+    }
+
+    function selectDraft(idx) { 
+        playerDeck.push(window.draftOptions[idx]); 
+        renderDeck(); 
+        completeNode(); 
+    }
+
+    function selectMyco(idx) {
+        if (window.mycoSelection.includes(idx)) return;
+        window.mycoSelection.push(idx);
+        if (window.mycoSelection.length === 2) {
+            let cA = playerDeck[window.mycoSelection[0]], cB = playerDeck[window.mycoSelection[1]];
+            let merged = JSON.parse(JSON.stringify(cA));
+            merged.power += cB.power; 
+            merged.health += cB.health; 
+            merged.maxHealth = merged.health; 
+            merged.name = "Myco-" + merged.name;
+            cB.sigils.forEach(s => { if (!merged.sigils.includes(s)) merged.sigils.push(s); });
+            playerDeck = playerDeck.filter((_, i) => !window.mycoSelection.includes(i));
+            playerDeck.push(merged);
+            renderDeck(); completeNode();
+        }
+    }
+
+    function completeNode() {
+        mapPath[currentNodeIndex].completed = true;
+        currentNodeIndex++;
+        
+        saveProgress(); // Auto-save after completing node logic
+        
+        if (currentNodeIndex >= mapPath.length) {
+            mapLevel++;
+            generateNewMap();
+        } else {
+            refreshMapUI();
+        }
+    }
+
+    /* --- COMBAT --- */
+    function startCombat() {
+        document.getElementById("map-screen").style.display = "none";
+        document.getElementById("main-nav").style.display = "none";
+        document.getElementById("combat-screen").style.display = "block";
+        
+        drawPile = JSON.parse(JSON.stringify(playerDeck)).sort(() => Math.random() - 0.5);
+        hand = []; playerBoard = [null, null, null, null]; enemyBoard = [null, null, null, null]; enemyQueue = [null, null, null, null];
+        scale = 0; phase = "DRAW"; selectedCardIndex = null; bloodPool = 0;
+        
+        drawCard('squirrel', true); drawCard('main', true); drawCard('main', true); drawCard('main', true);
+        enemyQueue[1] = { name: "Coyote", emoji: "🐺", power: 2 + (mapLevel-1), health: 1, maxHealth: 1, cost: 0, sigils: [] }; 
+        updateCombatUI();
+    }
+
+    function updateCombatUI() {
+        document.getElementById("scale").innerText = `Scale: ⚖️ ${scale} ` + (scale > 0 ? `(+${scale})` : `(${scale})`);
+        document.getElementById("draw-pile-count").innerText = drawPile.length;
+        
+        const renderRow = (prefix, arr) => {
+            for(let i=0; i<4; i++) {
+                let slot = document.getElementById(`${prefix}-${i}`);
+                slot.innerHTML = arr[i] ? renderCardHTML(arr[i], "") : "";
+            }
+        };
+        renderRow("p", playerBoard); renderRow("e", enemyBoard); renderRow("q", enemyQueue);
+        document.getElementById("hand").innerHTML = hand.map((c, idx) => renderCardHTML(c, `selectCombatCard(${idx})`, idx === selectedCardIndex)).join("");
+    }
+
+    function setStatus(msg) { document.getElementById("status").innerText = msg; }
+
+    function drawCard(type, force = false) {
+        if (!force && phase !== "DRAW") return setStatus("Already drew! End Turn.");
+        if (type === 'squirrel') hand.push({ name: "Squirrel", emoji: "🐿️", power: 0, health: 1, maxHealth: 1, cost: 0, sigils: [] });
+        else {
+            if (drawPile.length === 0) return setStatus("Deck empty!");
+            hand.push(drawPile.pop());
+        }
+        if (!force) { phase = "PLAY"; setStatus("Play cards or End Turn."); }
+        updateCombatUI();
+    }
+
+    function selectCombatCard(idx) {
+        if (phase !== "PLAY") return;
+        selectedCardIndex = idx; bloodPool = 0;
+        setStatus(`Selected ${hand[idx].name}. Requires ${hand[idx].cost} Blood.`);
+        updateCombatUI();
+    }
+
+    function handleSlotTap(slotIdx) {
+        if (phase !== "PLAY" || isTransitioning) return;
+        if (playerBoard[slotIdx] !== null) { 
+            if (selectedCardIndex !== null && hand[selectedCardIndex].cost > bloodPool) {
+                let sacrificedCard = playerBoard[slotIdx];
+                playerBoard[slotIdx] = null; 
+                bloodPool++;
+                
+                if (sacrificedCard.sigils.includes("Unkillable")) {
+                    let copy = JSON.parse(JSON.stringify(sacrificedCard));
+                    copy.health = copy.maxHealth;
+                    hand.push(copy);
+                }
+                
+                setStatus(`Sacrificed! Blood: ${bloodPool}`);
+                updateCombatUI();
+            }
+            return;
+        }
+        if (selectedCardIndex !== null && playerBoard[slotIdx] === null) {
+            let card = hand[selectedCardIndex];
+            if (bloodPool >= card.cost) {
+                playerBoard[slotIdx] = card; hand.splice(selectedCardIndex, 1);
+                selectedCardIndex = null; bloodPool = 0;
+                setStatus("Card placed."); updateCombatUI();
+            } else setStatus(`Need ${card.cost - bloodPool} more Blood.`);
+        }
+    }
+
+    function endTurn() {
+        if (phase !== "PLAY" || isTransitioning) return setStatus("Draw first!");
+        selectedCardIndex = null;
+        showToast("Turn Ended", 1000);
+
+        // 1. Player Attack
+        for (let i = 0; i < 4; i++) {
+            if (playerBoard[i]) {
+                let p = playerBoard[i];
+                let targets = p.sigils.includes("Bifurcated Strike") ? [i - 1, i + 1] : [i];
+                
+                targets.forEach(t => {
+                    if (t >= 0 && t < 4) { 
+                        let air = p.sigils.includes("Airborne");
+                        let leap = enemyBoard[t] && enemyBoard[t].sigils.includes("Mighty Leap");
+                        
+                        if (enemyBoard[t] && (!air || leap)) {
+                            if (p.sigils.includes("Touch of Death")) enemyBoard[t].health = 0;
+                            else enemyBoard[t].health -= p.power;
+                            
+                            if (enemyBoard[t].health <= 0) enemyBoard[t] = null;
+                        } else scale += p.power;
+                    }
+                });
+            }
+        }
+        if (checkWin()) return;
+
+        // 2. Enemy Queue Up
+        for (let i = 0; i < 4; i++) { if (!enemyBoard[i] && enemyQueue[i]) { enemyBoard[i] = enemyQueue[i]; enemyQueue[i] = null; } }
+
+        // 3. Enemy Attack
+        for (let i = 0; i < 4; i++) {
+            if (enemyBoard[i]) {
+                let e = enemyBoard[i];
+                let targets = e.sigils.includes("Bifurcated Strike") ? [i - 1, i + 1] : [i];
+                
+                targets.forEach(t => {
+                    if (t >= 0 && t < 4) {
+                        let air = e.sigils.includes("Airborne");
+                        let leap = playerBoard[t] && playerBoard[t].sigils.includes("Mighty Leap");
+                        
+                        if (playerBoard[t] && (!air || leap)) {
+                            if (e.sigils.includes("Touch of Death")) playerBoard[t].health = 0;
+                            else playerBoard[t].health -= e.power;
+                            
+                            if (playerBoard[t].health <= 0) {
+                                if (playerBoard[t].sigils.includes("Unkillable")) {
+                                    let copy = JSON.parse(JSON.stringify(playerBoard[t]));
+                                    copy.health = copy.maxHealth;
+                                    hand.push(copy);
+                                }
+                                playerBoard[t] = null;
+                            }
+                        } else scale -= e.power;
+                    }
+                });
+            }
+        }
+        if (checkWin()) return;
+
+        // 4. Enemy Intent
+        let emptyQs = [0,1,2,3].filter(i => !enemyQueue[i]);
+        if(emptyQs.length > 0) {
+            let rndSlot = emptyQs[Math.floor(Math.random() * emptyQs.length)];
+            enemyQueue[rndSlot] = { name: "Wolf", emoji: "🐺", power: 3, health: 2, maxHealth: 2, cost: 0, sigils: [] };
+        }
+
+        phase = "DRAW"; setStatus("Draw a card."); updateCombatUI();
+    }
+
+    function checkWin() {
+        if (scale >= 5) {
+            showToast("Battle Won!", 1500, () => {
+                document.getElementById("combat-screen").style.display = "none";
+                document.getElementById("map-screen").style.display = "block";
+                document.getElementById("main-nav").style.display = "flex";
+                isTransitioning = false;
+                completeNode();
+            });
+            return true;
+        }
+        if (scale <= -5) {
+            showToast("You Perished.", 2000, () => {
+                localStorage.removeItem("inscryptionSave"); // Wipe save on death
+                location.reload();
+            });
+            return true;
+        }
+        return false;
+    }
+
+    bootGame(); // Initialize game state
+</script>
+</body>
+</html>
