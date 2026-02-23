@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>P2P iOS Chat</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        /* iOS-style Dark Theme CSS Baseline */
+        :root {
+            --bg-color: #000000;
+            --card-bg: #1c1c1e;
+            --blue: #0a84ff;
+            --red: #ff453a;
+            --text-main: #ffffff;
+            --text-muted: #8e8e93;
+            --border: #38383a;
+            --nav-bg: rgba(28, 28, 30, 0.75);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Top Header & Countdown Timer */
+        header {
+            background-color: var(--nav-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 15px;
+            border-bottom: 0.5px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            flex-direction: column;
+        }
+
+        .id-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;}
+        .id-display { font-size: 20px; font-weight: 600; letter-spacing: 2px; margin-top: 4px; }
+        
+        #countdown-timer {
+            font-size: 11px;
+            color: var(--red);
+            margin-top: 6px;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 1px;
+        }
+
+        #fullscreen-btn {
+            position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+            width: 40px; height: 40px; padding: 0; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; font-size: 20px;
+        }
+
+        /* Main Content */
+        main { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; padding-bottom: 90px; }
+        .section { background: var(--card-bg); border-radius: 20px; padding: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+
+        /* Inputs & Buttons */
+        input[type="text"] {
+            width: 100%; padding: 14px 20px; border: 1px solid var(--border); border-radius: 24px;
+            font-size: 16px; margin-bottom: 10px; outline: none; -webkit-appearance: none;
+            background-color: #2c2c2e; color: white;
+        }
+        input[type="text"]:focus { border-color: var(--blue); }
+
+        button {
+            width: 100%; background: var(--glass-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            color: white; border: 1px solid var(--glass-border); padding: 16px; border-radius: 28px; 
+            font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+        button:active { background: rgba(255, 255, 255, 0.12); transform: scale(0.98); }
+        button:disabled { background: transparent; border-color: var(--border); color: var(--text-muted); box-shadow: none; cursor: not-allowed;}
+        button.danger { background: rgba(255, 69, 58, 0.15); border-color: rgba(255, 69, 58, 0.3); color: var(--red); }
+
+        /* Chat Layout */
+        #chat-window {
+            height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 16px;
+            padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; background-color: var(--bg-color);
+        }
+        .msg { padding: 10px 16px; border-radius: 20px; max-width: 80%; font-size: 15px; line-height: 1.3; word-wrap: break-word;}
+        .msg.sent { background-color: var(--blue); color: white; align-self: flex-end; border-bottom-right-radius: 4px;}
+        .msg.received { background-color: #2c2c2e; color: white; align-self: flex-start; border-bottom-left-radius: 4px;}
+        .msg.system { background: transparent; color: var(--text-muted); align-self: center; font-size: 11px; padding: 4px 0; text-transform: uppercase; letter-spacing: 0.5px;}
+
+        /* Friends List */
+        .friend-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 0.5px solid var(--border); }
+        .friend-item:last-child { border-bottom: none; }
+        .friend-info { display: flex; flex-direction: column; }
+        .friend-name { font-weight: 600; font-size: 16px; }
+        .friend-id { font-size: 12px; color: var(--text-muted); }
+        .friend-actions button { width: auto; padding: 8px 16px; font-size: 14px; margin-left: 8px; border-radius: 20px;}
+
+        /* Bottom Tab Bar */
+        nav {
+            position: fixed; bottom: 0; width: 100%; background-color: var(--nav-bg);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-top: 0.5px solid var(--border); display: flex; justify-content: space-around; padding: 10px; padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+        .tab-btn { background: none; border: none; box-shadow: none; color: var(--text-muted); padding: 10px; font-weight: 500; border-radius: 0; }
+        .tab-btn.active { color: var(--blue); }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6);
+            display: flex; justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal { background: var(--card-bg); padding: 24px; border-radius: 24px; width: 85%; text-align: center; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.8);}
+        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+
+        .donkey-footer { text-align: center; font-size: 10px; color: var(--text-muted); margin-top: auto; padding-top: 20px; opacity: 0.6; }
+        .hidden { display: none !important; }
+        #status { text-align: center; font-size: 14px; color: var(--text-muted); margin-bottom: 10px;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <div class="id-label">Daily Identity</div>
+            <div class="id-display" id="my-id-display">Loading...</div>
+            <div id="countdown-timer">Resets in --:--:--</div>
+            <button id="fullscreen-btn">⛶</button>
+        </div>
+    </header>
+
+    <main>
+        <div id="status">Connecting to network...</div>
+        <button id="enable-notifs-btn" style="margin-bottom: 15px; font-size: 14px; padding: 10px;">Enable Notifications 🔔</button>
+
+        <div id="view-connect">
+            <div class="section" id="connect-section">
+                <h2>New Chat</h2>
+                <input type="text" id="target-id" placeholder="Enter 10-digit ID" maxlength="10" autocapitalize="characters">
+                <button id="connect-btn" disabled>Request Connection</button>
+            </div>
+
+            <div class="section hidden" id="chat-section">
+                <h2 id="chat-title">Chat</h2>
+                <button id="end-chat-btn" class="danger" style="padding: 10px; font-size: 14px; margin-bottom: 15px;">End & Burn Chat</button>
+                <div id="chat-window"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="message-input" placeholder="iMessage" style="margin-bottom: 0;">
+                    <button id="send-btn" style="width: auto; padding: 0 24px;">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-friends" class="hidden">
+            <div class="section">
+                <h2>Friends List</h2>
+                <div id="friends-list">
+                    <p style="color: var(--text-muted); font-size: 14px; text-align: center;">No friends added yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="donkey-footer">powered by donkey👹</div>
+    </main>
+
+    <nav>
+        <button class="tab-btn active" id="tab-connect">Chat</button>
+        <button class="tab-btn" id="tab-friends">Friends</button>
+    </nav>
+
+    <div id="request-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>Incoming Chat</h3>
+            <p style="margin-top: 10px; color: var(--text-muted);" id="request-text">User ID wants to connect.</p>
+            <div class="modal-buttons">
+                <button id="reject-btn" class="danger">Decline</button>
+                <button id="accept-btn">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Daily Reset Logic ---
+        function checkAndResetDaily() {
+            const now = new Date();
+            const todayStr = now.toLocaleDateString();
+            const storedDate = localStorage.getItem('p2p_date');
+
+            if (storedDate !== todayStr) {
+                // It's a new day! Burn everything.
+                localStorage.removeItem('p2p_friends');
+                localStorage.removeItem('p2p_chats');
+                localStorage.removeItem('p2p_device_id');
+                localStorage.setItem('p2p_date', todayStr);
+                return true;
+            }
+            return false;
+        }
+
+        // Run check immediately on load
+        checkAndResetDaily();
+
+        // Clock timer for UI and live resets
+        function updateTimer() {
+            const now = new Date();
+            const midnight = new Date();
+            midnight.setHours(24, 0, 0, 0); // Next midnight
+            const diff = midnight - now;
+
+            const h = Math.floor((diff / (1000 * 60 * 60)) % 24).toString().padStart(2, '0');
+            const m = Math.floor((diff / 1000 / 60) % 60).toString().padStart(2, '0');
+            const s = Math.floor((diff / 1000) % 60).toString().padStart(2, '0');
+
+            document.getElementById('countdown-timer').innerText = `ID EXPIRES IN ${h}:${m}:${s}`;
+
+            if (diff <= 1000) {
+                // Midnight hit while using the app! Force a hard reset.
+                location.reload(); 
+            }
+        }
+        setInterval(updateTimer, 1000);
+        updateTimer();
+
+        // --- 2. Notification System ---
+        const notifBtn = document.getElementById('enable-notifs-btn');
+        if ("Notification" in window && Notification.permission === "granted") {
+            notifBtn.classList.add('hidden');
+        }
+
+        notifBtn.addEventListener('click', () => {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        notifBtn.classList.add('hidden');
+                        triggerNotification("System", "Notifications enabled!");
+                    }
+                });
+            }
+        });
+
+        function triggerNotification(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                // If the user is currently looking at the app, don't spam notifications
+                if (document.hidden || title === "Incoming Request") {
+                    new Notification(title, { body: body });
+                }
+            }
+        }
+
+        // --- App State & Data Management ---
+        function getDeviceId() {
+            let id = localStorage.getItem('p2p_device_id');
+            if (!id) {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                id = Array.from({length: 10}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                localStorage.setItem('p2p_device_id', id);
+            }
+            return id;
+        }
+
+        const myId = getDeviceId();
+        document.getElementById('my-id-display').innerText = myId;
+        
+        let peer = null;
+        let activeConnection = null;
+        let pendingConnection = null;
+        let currentChatPeer = null; 
+
+        let friends = JSON.parse(localStorage.getItem('p2p_friends')) || {};
+        let chatHistory = JSON.parse(localStorage.getItem('p2p_chats')) || {};
+
+        function saveMessage(peerId, text, type) {
+            if (!chatHistory[peerId]) chatHistory[peerId] = [];
+            chatHistory[peerId].push({ text, type });
+            localStorage.setItem('p2p_chats', JSON.stringify(chatHistory));
+        }
+
+        // --- UI Elements ---
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connect-btn');
+        const connectSection = document.getElementById('connect-section');
+        const chatSection = document.getElementById('chat-section');
+        const chatWindow = document.getElementById('chat-window');
+        const requestModal = document.getElementById('request-modal');
+        const chatTitle = document.getElementById('chat-title');
+        const sendBtn = document.getElementById('send-btn');
+        const messageInput = document.getElementById('message-input');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+                fullscreenBtn.innerText = "🗗";
+            } else {
+                document.exitFullscreen();
+                fullscreenBtn.innerText = "⛶";
+            }
+        });
+
+        document.getElementById('tab-connect').onclick = () => switchTab('connect');
+        document.getElementById('tab-friends').onclick = () => switchTab('friends');
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            if(tab === 'connect') {
+                document.getElementById('view-connect').classList.remove('hidden');
+                document.getElementById('view-friends').classList.add('hidden');
+            } else {
+                document.getElementById('view-connect').classList.add('hidden');
+                document.getElementById('view-friends').classList.remove('hidden');
+                renderFriends();
+            }
+        }
+
+        // --- Friends Management ---
+        function saveFriend(id, nickname = null) {
+            if (!friends[id]) friends[id] = nickname || 'Unknown User';
+            else if (nickname) friends[id] = nickname;
+            localStorage.setItem('p2p_friends', JSON.stringify(friends));
+            renderFriends();
+        }
+
+        function getFriendName(id) { return friends[id] || id; }
+
+        function renderFriends() {
+            const list = document.getElementById('friends-list');
+            if (Object.keys(friends).length === 0) {
+                list.innerHTML = '<p style="color: var(--text-muted); font-size: 14px; text-align: center;">No friends added yet.</p>';
+                return;
+            }
+            list.innerHTML = '';
+            for (const [id, name] of Object.entries(friends)) {
+                const item = document.createElement('div');
+                item.className = 'friend-item';
+                item.innerHTML = `
+                    <div class="friend-info">
+                        <span class="friend-name">${name}</span>
+                        <span class="friend-id">${id}</span>
+                    </div>
+                    <div class="friend-actions">
+                        <button onclick="setNickname('${id}')" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: white;">Edit</button>
+                        <button onclick="connectToFriend('${id}')">Chat</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            }
+        }
+
+        window.setNickname = function(id) {
+            const oldName = getFriendName(id);
+            const newName = prompt("Enter a nickname for this user:", oldName);
+            if (newName && newName.trim() !== "" && newName.trim() !== oldName) {
+                saveFriend(id, newName.trim());
+                saveMessage(id, `Nickname changed to ${newName.trim()}`, 'system');
+                if (currentChatPeer === id) {
+                    document.getElementById('chat-title').innerText = `Chat with ${newName.trim()}`;
+                    renderMessage(`Nickname changed to ${newName.trim()}`, 'system');
+                }
+            }
+        };
+
+        window.connectToFriend = function(id) {
+            switchTab('connect');
+            document.getElementById('target-id').value = id;
+            initiateConnection(id);
+        };
+
+        // --- WebRTC Initialization ---
+        peer = new Peer(myId);
+        peer.on('open', () => {
+            statusEl.innerText = "Ready to connect.";
+            connectBtn.disabled = false;
+        });
+
+        // --- Incoming Connections ---
+        peer.on('connection', (conn) => {
+            if (activeConnection) {
+                conn.send(JSON.stringify({ type: 'system', action: 'busy' }));
+                setTimeout(() => conn.close(), 500);
+                return;
+            }
+
+            pendingConnection = conn;
+            conn.on('data', (data) => {
+                const msg = JSON.parse(data);
+                if (msg.type === 'system' && msg.action === 'request') {
+                    const callerName = getFriendName(conn.peer);
+                    document.getElementById('request-text').innerText = `${callerName} wants to chat.`;
+                    requestModal.classList.remove('hidden');
+                    
+                    // Trigger notification for incoming request
+                    triggerNotification("Incoming Request", `${callerName} is asking to chat.`);
+                }
+            });
+        });
+
+        document.getElementById('accept-btn').onclick = () => {
+            if (pendingConnection) {
+                activeConnection = pendingConnection;
+                setupActiveChat(activeConnection);
+                activeConnection.send(JSON.stringify({ type: 'system', action: 'accept' }));
+                requestModal.classList.add('hidden');
+                openChatUI(activeConnection.peer, true);
+                pendingConnection = null;
+            }
+        };
+
+        document.getElementById('reject-btn').onclick = () => {
+            if (pendingConnection) {
+                pendingConnection.send(JSON.stringify({ type: 'system', action: 'reject' }));
+                setTimeout(() => pendingConnection.close(), 500);
+                requestModal.classList.add('hidden');
+                pendingConnection = null;
+            }
+        };
+
+        // --- Outgoing Connections ---
+        connectBtn.addEventListener('click', () => {
+            const targetId = document.getElementById('target-id').value.toUpperCase();
+            initiateConnection(targetId);
+        });
+
+        function initiateConnection(targetId) {
+            if (targetId.length !== 10 || targetId === myId) return;
+            
+            openChatUI(targetId, false);
+            statusEl.innerText = "Sending request...";
+            
+            const conn = peer.connect(targetId);
+            conn.on('open', () => {
+                conn.send(JSON.stringify({ type: 'system', action: 'request' }));
+                statusEl.innerText = "Waiting for user to accept...";
+            });
+
+            conn.on('data', (data) => {
+                const msg = JSON.parse(data);
+                if (msg.type === 'system') {
+                    if (msg.action === 'accept') {
+                        activeConnection = conn;
+                        setupActiveChat(conn);
+                        openChatUI(targetId, true); 
+                    } else if (msg.action === 'reject') {
+                        statusEl.innerText = "Request declined.";
+                        conn.close();
+                    } else if (msg.action === 'busy') {
+                        statusEl.innerText = "User is busy in another chat.";
+                        conn.close();
+                    }
+                }
+            });
+            
+            conn.on('close', () => {
+                if(!activeConnection) statusEl.innerText = "Connection failed or ended.";
+                sendBtn.disabled = true;
+                messageInput.disabled = true;
+            });
+        }
+
+        // --- Active Chat Management ---
+        function setupActiveChat(conn) {
+            conn.on('data', (data) => {
+                const msg = JSON.parse(data);
+                if (msg.type === 'chat') {
+                    saveMessage(conn.peer, msg.text, 'received');
+                    if (currentChatPeer === conn.peer) {
+                        renderMessage(msg.text, 'received');
+                    }
+                    // Trigger notification for incoming message
+                    triggerNotification(getFriendName(conn.peer), msg.text);
+                }
+            });
+            conn.on('close', closeChatUI);
+        }
+
+        function openChatUI(peerId, isConnected) {
+            currentChatPeer = peerId;
+            saveFriend(peerId);
+            chatTitle.innerText = `Chat with ${getFriendName(peerId)}`;
+            
+            sendBtn.disabled = !isConnected;
+            messageInput.disabled = !isConnected;
+            statusEl.innerText = isConnected ? `Connected` : `Viewing History (Connecting...)`;
+            
+            connectSection.classList.add('hidden');
+            chatSection.classList.remove('hidden');
+            
+            chatWindow.innerHTML = ''; 
+            if (chatHistory[peerId]) {
+                chatHistory[peerId].forEach(msg => {
+                    renderMessage(msg.text, msg.type);
+                });
+            }
+        }
+
+        function closeChatUI() {
+            if(activeConnection) {
+                activeConnection.close();
+                activeConnection = null;
+            }
+            currentChatPeer = null;
+            statusEl.innerText = "Chat closed.";
+            connectSection.classList.remove('hidden');
+            chatSection.classList.add('hidden');
+        }
+
+        // --- END & BURN CHAT LOGIC ---
+        document.getElementById('end-chat-btn').addEventListener('click', () => {
+            if (currentChatPeer) {
+                // Delete the record from memory
+                delete chatHistory[currentChatPeer];
+                localStorage.setItem('p2p_chats', JSON.stringify(chatHistory));
+            }
+            closeChatUI();
+        });
+
+        // --- Messaging Logic ---
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (text && activeConnection && activeConnection.open) {
+                activeConnection.send(JSON.stringify({ type: 'chat', text: text }));
+                saveMessage(activeConnection.peer, text, 'sent');
+                renderMessage(text, 'sent');
+                messageInput.value = '';
+            }
+        }
+
+        function renderMessage(text, type) {
+            const div = document.createElement('div');
+            div.classList.add('msg', type);
+            div.innerText = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+    </script>
+</body>
+</html>
