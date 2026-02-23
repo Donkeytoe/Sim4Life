@@ -17,6 +17,7 @@
         :root {
             --app-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             --purple-accent: rgb(94, 92, 230);
+            --cyber-green: #34C759;
             
             --bg-gradient: linear-gradient(-45deg, #e0c3fc, #8ec5fc, #e0c3fc, #b2c8f8);
             --glass-bg: rgba(255, 255, 255, 0.65);
@@ -36,6 +37,7 @@
             --bar-ended: #E5E5EA;
             --action-btn-bg: rgba(0,0,0,0.05);
             --alarm-glow: rgba(255, 59, 48, 0.4);
+            --switch-bg: rgba(128,128,128,0.25);
         }
 
         [data-theme="dark"] {
@@ -53,32 +55,18 @@
             --bar-ended: #48484A;
             --action-btn-bg: rgba(255,255,255,0.1);
             --alarm-glow: rgba(255, 69, 58, 0.4);
+            --switch-bg: rgba(255,255,255,0.15);
         }
 
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+        @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
-        * {
-            box-sizing: border-box;
-            transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        * { box-sizing: border-box; transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease; -webkit-tap-highlight-color: transparent; }
         html, body { height: 100%; width: 100%; overscroll-behavior-y: none; }
-
+        
         body {
-            font-family: var(--app-font);
-            background: var(--bg-gradient);
-            background-size: 300% 300%;
-            animation: gradientShift 15s ease infinite;
-            color: var(--text-main);
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            padding: 2.5rem 1rem 8rem 1rem;
-            margin: 0;
-            user-select: none; -webkit-user-select: none;
+            font-family: var(--app-font); background: var(--bg-gradient); background-size: 300% 300%; animation: gradientShift 15s ease infinite;
+            color: var(--text-main); display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            padding: 2.5rem 1rem 4rem 1rem; margin: 0; user-select: none; -webkit-user-select: none;
         }
 
         .app-container {
@@ -88,36 +76,32 @@
             padding: 2.5rem 2rem; display: flex; flex-direction: column; gap: 1.8rem; position: relative; height: fit-content;
         }
 
-        @keyframes pulseGlow {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(52, 199, 89, 0.3)); }
-            50% { transform: scale(1.1); filter: drop-shadow(0 0 12px rgba(52, 199, 89, 0.8)); }
-        }
+        /* --- 3D Volumetric Head Wireframe (Feminine Profile) --- */
+        .top-head-container { display: flex; justify-content: center; align-items: center; perspective: 800px; margin-top: -10px; margin-bottom: 5px; height: 60px; }
+        @keyframes spinY5Deg { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+        .head-wrapper { position: relative; width: 60px; height: 60px; transform-style: preserve-3d; animation: spinY5Deg 6s steps(72) infinite; }
+        .head-plane { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; opacity: 0.7; backface-visibility: visible; }
+        .plane-1 { transform: rotateY(0deg); } .plane-2 { transform: rotateY(45deg); } .plane-3 { transform: rotateY(90deg); } .plane-4 { transform: rotateY(135deg); }
+        @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 2px rgba(52, 199, 89, 0.3)); } 50% { filter: drop-shadow(0 0 8px rgba(52, 199, 89, 0.9)); } }
+        .head-outline { animation: pulseGlow 4s ease-in-out infinite; }
+        .hex-core { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(0); display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; pointer-events: none; }
+        @keyframes counterSpin { from { transform: rotateY(0deg); } to { transform: rotateY(-360deg); } }
+        .hex-text { color: var(--cyber-green); font-family: 'Courier New', Courier, monospace; font-weight: 900; font-size: 0.9rem; text-shadow: 0 0 5px rgba(52, 199, 89, 0.8), 0 0 10px rgba(52, 199, 89, 0.5); margin-bottom: 5px; margin-left: -5px; animation: counterSpin 6s steps(72) infinite; }
 
-        .top-diamond { display: flex; justify-content: center; margin-top: -10px; margin-bottom: -15px; }
-        .top-diamond svg { animation: pulseGlow 4s ease-in-out infinite; }
-
-        .header { display: flex; justify-content: space-between; align-items: center; min-height: 40px; }
-        h1 { color: var(--text-main); margin: 0; font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+        /* --- Clean Header (Title Removed) --- */
+        .header { display: flex; justify-content: flex-start; align-items: center; min-height: 40px; }
         .header-actions { display: flex; z-index: 2; }
         .icon-btn { background: rgba(128, 128, 128, 0.08); color: var(--text-main); border: none; padding: 10px; border-radius: 14px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .icon-btn:hover { background: rgba(128, 128, 128, 0.15); transform: scale(1.05); }
 
         .input-group { display: flex; flex-direction: column; gap: 14px; background: rgba(128,128,128,0.03); padding: 1.5rem; border-radius: 28px; border: 1px solid var(--glass-border); }
-        
         input[type="text"], input[type="number"], select, textarea { 
             font-family: inherit; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-main); 
-            padding: 16px; border-radius: 16px; font-size: 1.05rem; outline: none; width: 100%; 
-            box-shadow: var(--input-shadow); transition: all 0.3s ease; user-select: auto; -webkit-user-select: auto;
+            padding: 16px; border-radius: 16px; font-size: 1.05rem; outline: none; width: 100%; box-shadow: var(--input-shadow); transition: all 0.3s ease; user-select: auto; -webkit-user-select: auto;
         }
-        
         textarea { resize: vertical; min-height: 80px; }
-        
-        input:focus, select:focus, textarea:focus { 
-            border-color: var(--purple-accent); box-shadow: 0 0 0 3px rgba(94, 92, 230, 0.2), var(--input-shadow); transform: translateY(-1px); 
-        }
-        
+        input:focus, select:focus, textarea:focus { border-color: var(--purple-accent); box-shadow: 0 0 0 3px rgba(94, 92, 230, 0.2), var(--input-shadow); transform: translateY(-1px); }
         .time-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        
         button.create-btn { background: var(--purple-accent); color: var(--btn-text); border: none; padding: 18px; border-radius: 18px; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; width: 100%; margin-top: 10px; box-shadow: 0 10px 20px -5px rgba(94, 92, 230, 0.4); transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         button.create-btn:active { transform: scale(0.97); box-shadow: 0 5px 10px -5px rgba(94, 92, 230, 0.4); }
 
@@ -126,38 +110,36 @@
         .status-item { background: var(--card-bg); border-radius: 24px; padding: 1.5rem; display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--glass-border); box-shadow: 0 8px 16px -4px rgba(0,0,0,0.05); animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; position: relative; overflow: hidden; }
         .status-header { display: flex; justify-content: space-between; align-items: center; }
         .status-title { font-weight: 800; font-size: 1.15rem; color: var(--text-main); letter-spacing: -0.3px; flex: 1; overflow: hidden; text-overflow: ellipsis; }
-        
         .progress-container { width: 100%; background: var(--bar-bg); height: 14px; border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
         .progress-fill { height: 100%; background: var(--bar-green); width: 100%; border-radius: 999px; transition: width 1s linear, background 0.5s ease; }
         .progress-fill.warning { background: var(--bar-orange); }
         .progress-fill.danger { background: var(--bar-red); }
         .progress-fill.ended { background: var(--bar-ended); }
-        
         .status-footer { display: flex; justify-content: center; align-items: center; margin-top: -2px; }
         .status-time { font-weight: 800; font-size: 1.3rem; color: var(--purple-accent); font-variant-numeric: tabular-nums; background: rgba(128, 128, 128, 0.08); padding: 6px 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        
-        /* New Action Buttons Styling */
         .action-btns { display: flex; gap: 8px; }
-        .reset-btn, .remove-btn { 
-            background: var(--action-btn-bg); color: var(--text-muted); border: none; padding: 8px; 
-            border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; 
-            justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 1.1rem;
-        }
+        .reset-btn, .remove-btn { background: var(--action-btn-bg); color: var(--text-muted); border: none; padding: 8px; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 1.1rem; }
         .reset-btn:hover { background: #007AFF; color: white; transform: scale(1.1) rotate(180deg); }
         .remove-btn:hover { background: #FF3B30; color: white; transform: scale(1.1) rotate(90deg); }
 
+        /* --- New 3D Wireframe Sphere Button --- */
         .luck-section { margin-top: 1rem; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 1.5rem; border-top: 1px solid var(--glass-border); }
-        .luck-btn { background: transparent; border: none; font-size: 3.5rem; cursor: pointer; padding: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); filter: drop-shadow(0 10px 15px rgba(0,0,0,0.15)); }
-        .luck-btn:hover { transform: translateY(-5px) scale(1.1); filter: drop-shadow(0 15px 20px rgba(0,0,0,0.25)); }
-        .luck-btn:active { transform: scale(0.9); }
+        .luck-wireframe-btn { background: transparent; border: none; padding: 0; cursor: pointer; width: 60px; height: 60px; perspective: 800px; transition: transform 0.2s; }
+        .luck-wireframe-btn:active { transform: scale(0.95); }
+        .sphere-wrapper { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; animation: spinY5Deg 6s steps(72) infinite; }
+        .sphere-ring { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 2px solid var(--cyber-green); border-radius: 50%; opacity: 0.7; backface-visibility: visible; box-shadow: 0 0 5px rgba(52, 199, 89, 0.3), inset 0 0 5px rgba(52, 199, 89, 0.3); }
+        .s-ring-1 { transform: rotateY(0deg); } .s-ring-2 { transform: rotateY(45deg); } .s-ring-3 { transform: rotateY(90deg); } .s-ring-4 { transform: rotateY(135deg); }
+        .luck-wireframe-btn:hover .sphere-wrapper { filter: drop-shadow(0 0 8px rgba(52, 199, 89, 0.8)); }
+
         .luck-output { font-weight: 800; font-size: 1.25rem; min-height: 1.5rem; text-align: center; color: var(--purple-accent); }
 
-        .bottom-dock { display: flex; gap: 20px; background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--glass-border); border-top: 1px solid rgba(255, 255, 255, 0.4); padding: 12px 24px; border-radius: 999px; box-shadow: var(--glass-shadow); margin-top: 1.5rem; z-index: 100; }
-        .dock-btn { background: rgba(128, 128, 128, 0.08); color: var(--text-main); border: none; padding: 12px; border-radius: 50%; width: 48px; height: 48px; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .bottom-dock { display: flex; background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--glass-border); border-top: 1px solid rgba(255, 255, 255, 0.4); padding: 8px 12px; border-radius: 999px; box-shadow: var(--glass-shadow); margin-top: 1.5rem; z-index: 100; }
+        .dock-btn { background: rgba(128, 128, 128, 0.08); color: var(--text-main); border: none; padding: 12px 24px; border-radius: 999px; font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .dock-btn:hover { background: rgba(128, 128, 128, 0.15); transform: translateY(-4px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1); }
-        .notify-btn { color: var(--purple-accent); }
-        .notify-btn.granted { color: #34C759; cursor: default; }
 
+        .powered-by { margin-top: 2rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); opacity: 0.6; letter-spacing: 0.5px; text-align: center; }
+
+        /* --- Settings Modal --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         .settings-card { background: var(--card-bg); width: 90%; max-width: 420px; border-radius: 32px; padding: 2.5rem; box-shadow: 0 30px 60px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 24px; transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); border: 1px solid var(--glass-border); }
@@ -165,64 +147,43 @@
         .settings-header { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 1.6rem; letter-spacing: -0.5px;}
         .close-btn { background: var(--action-btn-bg); border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; color: var(--text-main); font-size: 1.2rem; transition: transform 0.2s; }
         .close-btn:hover { transform: scale(1.1); }
+        
         .setting-group { display: flex; flex-direction: column; gap: 10px; }
-        .setting-group label { font-weight: 700; font-size: 0.95rem; color: var(--text-muted); }
+        .setting-row { flex-direction: row; justify-content: space-between; align-items: center; }
+        .setting-group label { font-weight: 700; font-size: 1rem; color: var(--text-main); }
+        .setting-group label.sub-label { color: var(--text-muted); font-size: 0.95rem; }
+        
+        /* iOS Switch */
+        .ios-switch { position: relative; display: inline-block; width: 52px; height: 32px; margin: 0; }
+        .ios-switch input { opacity: 0; width: 0; height: 0; }
+        .ios-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--switch-bg); transition: .3s; border-radius: 32px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+        .ios-slider:before { position: absolute; content: ""; height: 28px; width: 28px; left: 2px; bottom: 2px; background-color: #FFFFFF; transition: .3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .ios-switch input:checked + .ios-slider { background-color: #34C759; }
+        .ios-switch input:checked + .ios-slider:before { transform: translateX(20px); }
+
         .slider-row { display: flex; align-items: center; gap: 12px; }
         .slider-row span { width: 18px; font-weight: 800; font-size: 1.1rem; }
-        .slider-row span.r { color: #FF3B30; }
-        .slider-row span.g { color: #34C759; }
-        .slider-row span.b { color: #007AFF; }
+        .slider-row span.r { color: #FF3B30; } .slider-row span.g { color: #34C759; } .slider-row span.b { color: #007AFF; }
         input[type="range"] { flex: 1; -webkit-appearance: none; height: 8px; border-radius: 6px; background: rgba(128,128,128,0.2); outline: none; box-shadow: var(--input-shadow); }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--text-main); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: transform 0.1s; }
         input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.2); }
         .color-preview { width: 100%; height: 48px; border-radius: 16px; background: var(--purple-accent); margin-top: 12px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
 
-        /* --- Constant Alarm Overlay & Details --- */
-        @keyframes alarmFlash {
-            0%, 100% { box-shadow: inset 0 0 0 0px var(--alarm-glow); background: rgba(0,0,0,0.7); }
-            50% { box-shadow: inset 0 0 0 20px var(--alarm-glow); background: rgba(0,0,0,0.85); }
-        }
+        /* --- Stacked Alarm Overlay --- */
+        @keyframes alarmFlash { 0%, 100% { box-shadow: inset 0 0 0 0px var(--alarm-glow); background: rgba(0,0,0,0.7); } 50% { box-shadow: inset 0 0 0 20px var(--alarm-glow); background: rgba(0,0,0,0.85); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
 
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-
-        .alarm-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 10000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-        }
-
-        .alarm-overlay.active {
-            opacity: 1; pointer-events: auto;
-            animation: alarmFlash 1.5s infinite;
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-        }
-
-        .alarm-card {
-            background: var(--card-bg); width: 90%; max-width: 400px;
-            border-radius: 32px; padding: 3rem 2rem; box-shadow: 0 40px 80px rgba(0,0,0,0.5);
-            display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;
-            border: 2px solid #FF3B30;
-        }
-
-        .alarm-overlay.active .alarm-card { animation: shake 0.5s ease-in-out; }
-
+        .alarm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 10000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .alarm-overlay.active { opacity: 1; pointer-events: auto; animation: alarmFlash 1.5s infinite; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+        .alarm-card { background: var(--card-bg); width: 90%; max-width: 400px; border-radius: 32px; padding: 3rem 2rem; box-shadow: 0 40px 80px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; border: 2px solid #FF3B30; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease; }
         .alarm-title-header { font-size: 1.5rem; font-weight: 800; color: #FF3B30; margin: 0; letter-spacing: -0.5px; }
-
         .details-container { display: flex; flex-direction: column; align-items: center; width: 100%; margin: 5px 0; }
         .details-btn { background: none; border: none; color: var(--text-muted); font-weight: 700; font-size: 1.05rem; cursor: pointer; padding: 8px 16px; border-radius: 12px; transition: background 0.2s, color 0.2s; }
         .details-btn:hover { background: rgba(128,128,128,0.1); color: var(--text-main); }
         .details-content { max-height: 0; overflow: hidden; opacity: 0; width: 100%; transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, margin 0.4s ease; font-size: 1.05rem; font-weight: 600; color: var(--text-main); line-height: 1.5; text-align: center; word-wrap: break-word; white-space: pre-wrap; }
         .details-content.expanded { max-height: 300px; opacity: 1; margin-top: 12px; }
         
-        .stop-alarm-btn {
-            background: linear-gradient(135deg, #FF3B30, #FF453A); color: white; border: none; padding: 18px 36px; border-radius: 20px;
-            font-size: 1.3rem; font-weight: 800; cursor: pointer; width: 100%; box-shadow: 0 10px 20px -5px rgba(255, 59, 48, 0.5);
-            transition: transform 0.2s; letter-spacing: -0.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
+        .stop-alarm-btn { background: linear-gradient(135deg, #FF3B30, #FF453A); color: white; border: none; padding: 18px 36px; border-radius: 20px; font-size: 1.3rem; font-weight: 800; cursor: pointer; width: 100%; box-shadow: 0 10px 20px -5px rgba(255, 59, 48, 0.5); transition: transform 0.2s; letter-spacing: -0.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .stop-alarm-btn:active { transform: scale(0.95); }
 
     </style>
@@ -230,18 +191,36 @@
 <body>
 
     <div class="app-container">
-        <div class="top-diamond">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="#34C759" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L22 12L12 22L2 12L12 2z"/>
-            </svg>
+        <div class="top-head-container">
+            <div class="head-wrapper">
+                <div class="head-plane plane-1">
+                    <svg class="head-outline" width="60" height="60" viewBox="0 0 64 64" fill="rgba(52, 199, 89, 0.05)" stroke="#34C759" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M 30 4 C 12 4 8 22 14 38 C 17 48 20 54 22 62 L 38 62 C 36 56 38 52 44 46 C 48 42 48 38 46 36 C 50 34 48 32 46 30 C 52 26 48 22 44 20 C 42 12 38 4 30 4 Z"/>
+                    </svg>
+                </div>
+                <div class="head-plane plane-2">
+                    <svg class="head-outline" width="60" height="60" viewBox="0 0 64 64" fill="rgba(52, 199, 89, 0.05)" stroke="#34C759" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M 30 4 C 12 4 8 22 14 38 C 17 48 20 54 22 62 L 38 62 C 36 56 38 52 44 46 C 48 42 48 38 46 36 C 50 34 48 32 46 30 C 52 26 48 22 44 20 C 42 12 38 4 30 4 Z"/>
+                    </svg>
+                </div>
+                <div class="head-plane plane-3">
+                    <svg class="head-outline" width="60" height="60" viewBox="0 0 64 64" fill="rgba(52, 199, 89, 0.05)" stroke="#34C759" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M 30 4 C 12 4 8 22 14 38 C 17 48 20 54 22 62 L 38 62 C 36 56 38 52 44 46 C 48 42 48 38 46 36 C 50 34 48 32 46 30 C 52 26 48 22 44 20 C 42 12 38 4 30 4 Z"/>
+                    </svg>
+                </div>
+                <div class="head-plane plane-4">
+                    <svg class="head-outline" width="60" height="60" viewBox="0 0 64 64" fill="rgba(52, 199, 89, 0.05)" stroke="#34C759" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M 30 4 C 12 4 8 22 14 38 C 17 48 20 54 22 62 L 38 62 C 36 56 38 52 44 46 C 48 42 48 38 46 36 C 50 34 48 32 46 30 C 52 26 48 22 44 20 C 42 12 38 4 30 4 Z"/>
+                    </svg>
+                </div>
+                <div class="hex-core"><span class="hex-text" id="hex-value">0x</span></div>
+            </div>
         </div>
 
         <div class="header">
             <div class="header-actions">
                 <button class="icon-btn" onclick="toggleFullScreen()" title="Full Screen">⛶</button>
             </div>
-            <h1>Status</h1>
-            <div style="width: 44px;"></div>
         </div>
         
         <div class="input-group">
@@ -260,16 +239,23 @@
         <div id="status-list"></div>
 
         <div class="luck-section">
-            <button class="luck-btn" onclick="checkLuck()">🔮</button>
+            <button class="luck-wireframe-btn" onclick="checkLuck()">
+                <div class="sphere-wrapper">
+                    <div class="sphere-ring s-ring-1"></div>
+                    <div class="sphere-ring s-ring-2"></div>
+                    <div class="sphere-ring s-ring-3"></div>
+                    <div class="sphere-ring s-ring-4"></div>
+                </div>
+            </button>
             <div id="luck-output" class="luck-output"></div>
         </div>
     </div>
 
     <div class="bottom-dock">
-        <button class="dock-btn" onclick="toggleSettings()">⚙️</button>
-        <button class="dock-btn" id="theme-btn" onclick="toggleTheme()">🌙</button>
-        <button class="dock-btn notify-btn" id="notify-btn" onclick="requestNotificationPermission()">🔔</button>
+        <button class="dock-btn" onclick="toggleSettings()">⚙️ Settings</button>
     </div>
+
+    <div class="powered-by">powered by donkey👹</div>
 
     <div class="modal-overlay" id="settings-modal">
         <div class="settings-card">
@@ -277,9 +263,25 @@
                 Settings
                 <button class="close-btn" onclick="toggleSettings()">✕</button>
             </div>
+
+            <div class="setting-group setting-row">
+                <label>Dark Mode</label>
+                <label class="ios-switch">
+                    <input type="checkbox" id="dark-mode-toggle" onchange="handleThemeToggle(this)">
+                    <span class="ios-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-group setting-row">
+                <label>Desktop Alerts</label>
+                <label class="ios-switch">
+                    <input type="checkbox" id="notif-toggle" onchange="handleNotifToggle(this)">
+                    <span class="ios-slider"></span>
+                </label>
+            </div>
             
-            <div class="setting-group">
-                <label>App Font</label>
+            <div class="setting-group" style="margin-top: 10px;">
+                <label class="sub-label">App Font</label>
                 <select id="font-select" onchange="updateFont()">
                     <option value='-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'>System Default (Sleek)</option>
                     <option value='"SF Pro Rounded", "Nunito", sans-serif'>Rounded (Friendly)</option>
@@ -289,7 +291,7 @@
             </div>
 
             <div class="setting-group">
-                <label>Custom Interface Color (RGB)</label>
+                <label class="sub-label">Custom Interface Color (RGB)</label>
                 <div class="slider-row"><span class="r">R</span><input type="range" id="red-slider" min="0" max="255" value="94" oninput="updateColor()"></div>
                 <div class="slider-row"><span class="g">G</span><input type="range" id="green-slider" min="0" max="255" value="92" oninput="updateColor()"></div>
                 <div class="slider-row"><span class="b">B</span><input type="range" id="blue-slider" min="0" max="255" value="230" oninput="updateColor()"></div>
@@ -298,25 +300,66 @@
         </div>
     </div>
 
-    <div class="alarm-overlay" id="alarm-overlay">
-        <div class="alarm-card">
-            <h2 class="alarm-title-header">Time's Up!</h2>
-            
-            <div class="details-container" id="alarm-details-container" style="display: none;">
-                <button class="details-btn" id="details-toggle-btn" onclick="toggleDetails()">Details ▼</button>
-                <div class="details-content" id="alarm-desc"></div>
-            </div>
-
-            <button class="stop-alarm-btn" id="stop-alarm-btn" onclick="stopAlarm()">Stop Alarm</button>
-        </div>
-    </div>
+    <div class="alarm-overlay" id="alarm-overlay"></div>
 
     <script>
+        // --- Hex Generator ---
+        setInterval(() => {
+            const hexElement = document.getElementById('hex-value');
+            if(hexElement) {
+                const randomHex = Math.floor(Math.random() * 256).toString(16).toUpperCase().padStart(2, '0');
+                hexElement.innerText = randomHex;
+            }
+        }, 1000);
+
+        // --- Web Audio API ---
+        let audioCtx;
+        let alarmIntervalSound;
+
+        document.body.addEventListener('click', () => {
+            if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }, { once: true });
+
+        function playSynthesizedChime() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            osc.frequency.setValueAtTime(1108.51, audioCtx.currentTime + 0.1); 
+            
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function startAlarmSound() {
+            if (!alarmIntervalSound) {
+                playSynthesizedChime(); 
+                alarmIntervalSound = setInterval(playSynthesizedChime, 1000); 
+            }
+        }
+
+        function stopAlarmSound() {
+            if (alarmIntervalSound) {
+                clearInterval(alarmIntervalSound);
+                alarmIntervalSound = null;
+            }
+        }
+
         // --- Persistence Engine ---
         try {
             const savedTheme = localStorage.getItem('status-theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
-            document.getElementById('theme-btn').innerText = savedTheme === 'light' ? '🌙' : '☀️';
+            document.getElementById('dark-mode-toggle').checked = (savedTheme === 'dark');
 
             const savedFont = localStorage.getItem('status-font');
             if (savedFont) {
@@ -338,26 +381,51 @@
                 document.getElementById('theme-color-meta').setAttribute('content', newColor);
             }
 
-            if ("Notification" in window && Notification.permission === "granted") {
-                document.getElementById('notify-btn').classList.add("granted");
+            const notifsEnabled = localStorage.getItem('status-notifs') !== 'false';
+            if ("Notification" in window && Notification.permission === "granted" && notifsEnabled) {
+                document.getElementById('notif-toggle').checked = true;
+            } else {
+                document.getElementById('notif-toggle').checked = false;
             }
-        } catch (e) { console.warn("Local storage blocked.", e); }
+        } catch (e) {}
 
-        // --- Settings Logic ---
         function toggleSettings() { document.getElementById('settings-modal').classList.toggle('active'); }
+        
+        function handleThemeToggle(el) {
+            const newTheme = el.checked ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            try { localStorage.setItem('status-theme', newTheme); } catch(e){}
+        }
+
+        function handleNotifToggle(el) {
+            if (el.checked) {
+                if ("Notification" in window) {
+                    Notification.requestPermission().then(permission => {
+                        if (permission !== "granted") {
+                            el.checked = false; 
+                            alert("Please allow notifications in your browser settings first.");
+                        } else {
+                            try { localStorage.setItem('status-notifs', 'true'); } catch(e){}
+                        }
+                    });
+                } else {
+                    alert("Desktop notifications are not supported in this browser.");
+                    el.checked = false;
+                }
+            } else {
+                try { localStorage.setItem('status-notifs', 'false'); } catch(e){}
+            }
+        }
+
         function updateFont() { const font = document.getElementById('font-select').value; document.documentElement.style.setProperty('--app-font', font); try { localStorage.setItem('status-font', font); } catch(e){} }
+        
         function updateColor() {
             const r = document.getElementById('red-slider').value; const g = document.getElementById('green-slider').value; const b = document.getElementById('blue-slider').value;
             const newColor = `rgb(${r}, ${g}, ${b})`;
             document.documentElement.style.setProperty('--purple-accent', newColor); document.getElementById('color-preview').style.background = newColor; document.getElementById('theme-color-meta').setAttribute('content', newColor); 
             try { localStorage.setItem('status-r', r); localStorage.setItem('status-g', g); localStorage.setItem('status-b', b); } catch(e){}
         }
-        function toggleTheme() {
-            const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            document.getElementById('theme-btn').innerText = newTheme === 'light' ? '🌙' : '☀️';
-            try { localStorage.setItem('status-theme', newTheme); } catch(e){}
-        }
+        
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
                 if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
@@ -371,7 +439,7 @@
         // --- Advanced Timer Engine ---
         let statuses = [];
         let statusIdCounter = 0;
-        let activeAlarms = [];
+        let triggeredAlarmsStack = []; 
 
         function saveTimers() {
             try {
@@ -405,18 +473,9 @@
             }
         } catch(e){}
 
-        function requestNotificationPermission() {
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") document.getElementById('notify-btn').classList.add("granted");
-                });
-            }
-        }
-
         function addNewStatus() {
             const titleInput = document.getElementById('title-input');
             const descInput = document.getElementById('desc-input');
-            
             const daysInput = document.getElementById('days-input');
             const hoursInput = document.getElementById('hours-input');
             const minInput = document.getElementById('min-input');
@@ -447,7 +506,6 @@
         }
 
         function startTimer(status) {
-            // Ensure any previous interval is cleared before starting a new one
             if(status.interval) clearInterval(status.interval);
             
             status.interval = setInterval(() => {
@@ -457,32 +515,21 @@
                 if (status.remainingSeconds <= 0) {
                     clearInterval(status.interval);
                     status.remainingSeconds = 0;
-                    
-                    if (!status.alarmed) {
-                        triggerConstantAlarm(status);
-                    }
+                    if (!status.alarmed) triggerConstantAlarm(status);
                 }
                 updateStatusUI(status);
             }, 1000);
         }
 
-        // --- NEW: Reset Timer Feature ---
         function resetStatus(id) {
             const index = statuses.findIndex(s => s.id === id);
             if (index > -1) {
                 const status = statuses[index];
-                
-                // Stop the current countdown
                 if(status.interval) clearInterval(status.interval);
-                
-                // Recalculate the absolute end time from now
                 status.endTime = Date.now() + (status.totalSeconds * 1000);
                 status.remainingSeconds = status.totalSeconds;
-                status.alarmed = false; // Reset the alarm flag so it can ring again
-                
-                saveTimers(); 
-                updateStatusUI(status); // Snap the UI back to full instantly
-                startTimer(status); // Restart the clock
+                status.alarmed = false; 
+                saveTimers(); updateStatusUI(status); startTimer(status); 
             }
         }
 
@@ -491,55 +538,96 @@
             if (index > -1) { clearInterval(statuses[index].interval); statuses.splice(index, 1); saveTimers(); renderStatuses(); }
         }
 
-        // --- Expandable Alarm System ---
         function triggerConstantAlarm(status) {
             status.alarmed = true;
             saveTimers();
-            activeAlarms.push(status.id);
-
-            document.getElementById('stop-alarm-btn').innerText = status.title;
             
-            const detailsContainer = document.getElementById('alarm-details-container');
-            const descEl = document.getElementById('alarm-desc');
+            triggeredAlarmsStack.unshift(status);
+            renderAlarmStack();
+            startAlarmSound();
+            
+            if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
 
-            if (status.description && status.description.trim() !== "") {
-                detailsContainer.style.display = 'flex';
-                descEl.innerText = status.description;
-            } else {
-                detailsContainer.style.display = 'none';
+            const notifsEnabled = document.getElementById('notif-toggle').checked;
+            if ("Notification" in window && Notification.permission === "granted" && notifsEnabled) {
+                try {
+                    new Notification(status.title, { body: status.description || "Timer finished!", requireInteraction: true });
+                } catch(e) {
+                    new Notification(status.title); 
+                }
             }
-            
-            document.getElementById('alarm-overlay').classList.add('active');
+        }
 
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(status.title, { 
-                    body: status.description || "Your timer has finished.",
-                    requireInteraction: true 
+        function renderAlarmStack() {
+            const overlay = document.getElementById('alarm-overlay');
+            overlay.innerHTML = ''; 
+            
+            if (triggeredAlarmsStack.length > 0) {
+                overlay.classList.add('active');
+                
+                [...triggeredAlarmsStack].reverse().forEach((alarm) => {
+                    const originalIndex = triggeredAlarmsStack.indexOf(alarm);
+                    const card = document.createElement('div');
+                    card.className = 'alarm-card';
+                    
+                    const scale = Math.max(1 - (originalIndex * 0.05), 0.85);
+                    const translateY = originalIndex * 15;
+                    const opacity = originalIndex === 0 ? 1 : Math.max(1 - (originalIndex * 0.3), 0.2);
+                    
+                    card.style.position = originalIndex === 0 ? 'relative' : 'absolute';
+                    if (originalIndex > 0) {
+                        card.style.top = '50%'; card.style.left = '50%';
+                        card.style.transform = `translate(-50%, calc(-50% - ${translateY}px)) scale(${scale})`;
+                    } else {
+                        card.style.animation = 'shake 0.5s ease-in-out';
+                    }
+                    
+                    card.style.zIndex = 100 - originalIndex;
+                    card.style.opacity = opacity;
+                    card.style.pointerEvents = originalIndex === 0 ? 'auto' : 'none'; 
+
+                    let detailsHtml = '';
+                    if (alarm.description && alarm.description.trim() !== "") {
+                        detailsHtml = `
+                            <div class="details-container">
+                                <button class="details-btn" onclick="toggleAlarmDetails(${alarm.id}, this)">Details ▼</button>
+                                <div class="details-content" id="desc-${alarm.id}">${alarm.description}</div>
+                            </div>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <h2 class="alarm-title-header">Time's Up!</h2>
+                        ${detailsHtml}
+                        <button class="stop-alarm-btn" onclick="dismissAlarm(${alarm.id})">${alarm.title}</button>
+                    `;
+                    
+                    overlay.appendChild(card);
                 });
             }
         }
 
-        function toggleDetails() {
-            const content = document.getElementById('alarm-desc');
-            const btn = document.getElementById('details-toggle-btn');
-            
+        function toggleAlarmDetails(id, btnElement) {
+            const content = document.getElementById(`desc-${id}`);
             if (content.classList.contains('expanded')) {
                 content.classList.remove('expanded');
-                btn.innerText = 'Details ▼';
+                btnElement.innerText = 'Details ▼';
             } else {
                 content.classList.add('expanded');
-                btn.innerText = 'Details ▲';
+                btnElement.innerText = 'Details ▲';
             }
         }
 
-        function stopAlarm() {
-            document.getElementById('alarm-overlay').classList.remove('active');
-            activeAlarms = [];
+        function dismissAlarm(statusId) {
+            triggeredAlarmsStack = triggeredAlarmsStack.filter(a => a.id !== statusId);
             
-            setTimeout(() => {
-                document.getElementById('alarm-desc').classList.remove('expanded');
-                document.getElementById('details-toggle-btn').innerText = 'Details ▼';
-            }, 300); 
+            if (triggeredAlarmsStack.length === 0) {
+                stopAlarmSound();
+                document.getElementById('alarm-overlay').classList.remove('active');
+                setTimeout(() => document.getElementById('alarm-overlay').innerHTML = '', 300);
+            } else {
+                renderAlarmStack();
+            }
         }
 
         function formatTime(totalSeconds) {
@@ -547,10 +635,8 @@
             const h = Math.floor((totalSeconds % 86400) / 3600);
             const m = Math.floor((totalSeconds % 3600) / 60);
             const s = totalSeconds % 60;
-            
             let timeString = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
             if (d > 0) timeString = `${d}d ` + timeString; 
-            
             return timeString;
         }
 
@@ -561,8 +647,6 @@
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'status-item';
                 itemDiv.id = `status-${status.id}`;
-                
-                // Added the new Reset Button into the header next to the remove button
                 itemDiv.innerHTML = `
                     <div class="status-header">
                         <div class="status-title" title="${status.title}">${status.title}</div>
