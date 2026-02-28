@@ -21,7 +21,9 @@
 
     .header-controls { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; max-width: 1200px; gap: 10px; flex-wrap: wrap; }
     .main-layout { display: flex; flex-direction: column; width: 100%; max-width: 1200px; gap: 15px; }
-    @media (min-width: 850px) { .main-layout { flex-direction: row; align-items: flex-start; } .panel { flex: 1; } }
+    
+    /* FIX: Changed from flex-start to stretch so both panels match length identically */
+    @media (min-width: 850px) { .main-layout { flex-direction: row; align-items: stretch; } .panel { flex: 1; } }
 
     .panel {
         background: var(--panel-bg); border-radius: 20px; padding: 15px 20px;
@@ -30,22 +32,11 @@
 
     /* Retro Visualizer */
     .vis-panel {
-        padding: 10px;
-        background: #0a0a0c;
-        border-radius: 12px;
-        border: 2px solid #2c2c2e;
-        height: 80px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        padding: 10px; background: #0a0a0c; border-radius: 12px; border: 2px solid #2c2c2e;
+        height: 80px; display: flex; justify-content: center; align-items: center;
         box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
     }
-    canvas {
-        width: 100%;
-        height: 100%;
-        image-rendering: pixelated;
-        border-radius: 4px;
-    }
+    canvas { width: 100%; height: 100%; image-rendering: pixelated; border-radius: 4px; }
 
     /* Sliders */
     .horizontal-slider-wrapper { display: flex; align-items: center; gap: 10px; background: #2c2c2e; padding: 8px 15px; border-radius: 12px; }
@@ -56,8 +47,6 @@
     .slider-row::-webkit-scrollbar { display: none; }
     .slider-wrapper { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
     .slider-label { font-size: 0.65rem; color: #aeaeb2; text-align: center; width: 45px; line-height: 1.2; min-height: 24px; font-weight: bold; }
-    
-    /* Highlight the Volume label */
     .slider-wrapper:first-child .slider-label { color: #fff; } 
     
     .vertical-slider-container { width: 30px; height: 100px; position: relative; display: flex; justify-content: center; align-items: center; }
@@ -75,7 +64,8 @@
     .octave-controls button:active { background: var(--accent); color: white; }
     .octave-label { font-size: 0.7rem; font-weight: bold; width: 40px; text-align: center; }
 
-    .keyboard { display: flex; position: relative; height: 110px; border-radius: 8px; overflow: hidden; touch-action: none;}
+    /* FIX: Added flex-grow so it stretches to match drum length */
+    .keyboard { flex-grow: 1; display: flex; position: relative; min-height: 110px; border-radius: 8px; overflow: hidden; touch-action: none;}
     .key { flex: 1; background: white; border: 1px solid #d1d1d6; border-radius: 0 0 6px 6px; cursor: pointer; position: relative; z-index: 1; }
     .key.active { background: #d1d1d6; }
     .key.black { background: #2c2c2e; height: 60%; width: 8%; position: absolute; z-index: 2; border-radius: 0 0 4px 4px; margin-left: -4%; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
@@ -84,12 +74,13 @@
     .key.black .key-hint { color: #666; }
 
     /* Sequencer */
-    .sequencer { display: flex; flex-direction: column; gap: 8px; }
-    .track { display: flex; align-items: center; gap: 8px; }
+    /* FIX: Added flex-grow and space-between to evenly distribute tracks */
+    .sequencer { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+    .track { display: flex; align-items: center; gap: 8px; flex-grow: 1; }
     .track-label { width: 45px; font-weight: 700; font-size: 0.65rem; text-transform: uppercase; display: flex; flex-direction: column;}
     .track-hint { font-size: 0.5rem; color: #666; font-weight: normal; }
-    .steps { display: flex; flex: 1; gap: 4px; }
-    .step { flex: 1; height: 32px; border-radius: 6px; background: #2c2c2e; cursor: pointer; }
+    .steps { display: flex; flex: 1; gap: 4px; height: 100%; }
+    .step { flex: 1; min-height: 32px; height: 100%; border-radius: 6px; background: #2c2c2e; cursor: pointer; }
     .step.active { background: var(--accent); }
     .step.current { border: 2px solid white; box-sizing: border-box; }
 
@@ -115,7 +106,7 @@
     @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     @keyframes pulseSynth { 0% { background: #bf5af2; } 50% { background: #ff3b30; } 100% { background: #bf5af2; } }
 
-    /* Simplified Mapping Modal */
+    /* Mapping Modal */
     #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
     .modal-content { background: var(--panel-bg); padding: 20px; border-radius: 20px; text-align: center; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;}
     .mapping-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 20px 0; text-align: left; }
@@ -215,7 +206,7 @@
     </div>
 
 <script>
-    // --- State Management (LocalStorage Engine with Hydration Fix) ---
+    // --- State Management ---
     const defaultState = {
         bpm: 120,
         drumFx: { vol: 0.8, delay: 0, dist: 0, crush: 16, flange: 0, wobble: 0, filterFreq: 5000 },
@@ -240,9 +231,7 @@
     };
 
     let rawState = null;
-    try {
-        rawState = JSON.parse(localStorage.getItem('webStudioState'));
-    } catch (e) { console.error("Could not parse saved state.", e); }
+    try { rawState = JSON.parse(localStorage.getItem('webStudioState')); } catch (e) { console.error(e); }
 
     let appState = defaultState;
     if (rawState) {
@@ -259,26 +248,24 @@
     function saveState() {
         appState.bpm = document.getElementById('bpmSlider').value;
         appState.drumFx = {
-            vol: document.getElementById('d_vol').value,
-            delay: document.getElementById('d_delay').value, dist: document.getElementById('d_dist').value,
-            crush: document.getElementById('d_crush').value, flange: document.getElementById('d_flange').value,
-            wobble: document.getElementById('d_wobble').value, filterFreq: document.getElementById('d_filterFreq').value
+            vol: document.getElementById('d_vol').value, delay: document.getElementById('d_delay').value, 
+            dist: document.getElementById('d_dist').value, crush: document.getElementById('d_crush').value, 
+            flange: document.getElementById('d_flange').value, wobble: document.getElementById('d_wobble').value, 
+            filterFreq: document.getElementById('d_filterFreq').value
         };
         appState.synthFx = {
-            vol: document.getElementById('s_vol').value,
-            delay: document.getElementById('s_delay').value, dist: document.getElementById('s_dist').value,
-            crush: document.getElementById('s_crush').value, flange: document.getElementById('s_flange').value,
-            wobble: document.getElementById('s_wobble').value, filterFreq: document.getElementById('s_filterFreq').value
+            vol: document.getElementById('s_vol').value, delay: document.getElementById('s_delay').value, 
+            dist: document.getElementById('s_dist').value, crush: document.getElementById('s_crush').value, 
+            flange: document.getElementById('s_flange').value, wobble: document.getElementById('s_wobble').value, 
+            filterFreq: document.getElementById('s_filterFreq').value
         };
         localStorage.setItem('webStudioState', JSON.stringify(appState));
     }
 
-    // --- Render Vertical Slider Rows ---
+    // --- Build UI ---
     function renderEffectRow(containerId, prefix, initialValues) {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
-        
-        // ADDED VOLUME TO THE START OF THE ARRAY
         const effects = [
             { id: 'vol', label: 'Volume', min: 0, max: 1.5, step: 0.01, val: initialValues.vol },
             { id: 'delay', label: 'Echo', min: 0, max: 0.8, step: 0.01, val: initialValues.delay },
@@ -292,67 +279,43 @@
         effects.forEach(fx => {
             const wrapper = document.createElement('div');
             wrapper.className = 'slider-wrapper';
-            wrapper.innerHTML = `
-                <div class="slider-label">${fx.label}</div>
-                <div class="vertical-slider-container">
-                    <input type="range" class="vertical-slider" id="${prefix}_${fx.id}" min="${fx.min}" max="${fx.max}" step="${fx.step}" value="${fx.val}">
-                </div>
-            `;
+            wrapper.innerHTML = `<div class="slider-label">${fx.label}</div><div class="vertical-slider-container"><input type="range" class="vertical-slider" id="${prefix}_${fx.id}" min="${fx.min}" max="${fx.max}" step="${fx.step}" value="${fx.val}"></div>`;
             container.appendChild(wrapper);
         });
     }
 
     renderEffectRow('drumFxRow', 'd', appState.drumFx);
     renderEffectRow('synthFxRow', 's', appState.synthFx);
-    
     document.getElementById('bpmSlider').value = appState.bpm;
     document.getElementById('bpmVal').innerText = appState.bpm;
 
-    // --- Core Audio, Routing & Visualizer ---
-    let audioCtx, masterGain, mediaStreamDest; 
-    let synthFX, drumFX;
-    let octaveShift = 0;
-    
-    // Visualizer variables
+    // --- Audio Engine ---
+    let audioCtx, masterGain, mediaStreamDest, synthFX, drumFX, octaveShift = 0;
     let analyser, dataArray, bufferLength, canvasCtx;
 
     function createFXChain(audioCtx, destination, prefix) {
-        const inputBus = audioCtx.createGain();
-        const outputBus = audioCtx.createGain(); 
-        
-        // Apply saved volume instantly
+        const inputBus = audioCtx.createGain(); const outputBus = audioCtx.createGain(); 
         outputBus.gain.value = document.getElementById(`${prefix}_vol`).value; 
         outputBus.connect(destination);
 
         const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; 
         filter.frequency.value = document.getElementById(`${prefix}_filterFreq`).value;
-        
         const wobbleLFO = audioCtx.createOscillator(); wobbleLFO.frequency.value = document.getElementById(`${prefix}_wobble`).value / 2; wobbleLFO.start();
         const wobbleGain = audioCtx.createGain(); wobbleGain.gain.value = document.getElementById(`${prefix}_wobble`).value * 100;
         wobbleLFO.connect(wobbleGain); wobbleGain.connect(filter.frequency);
 
         const crusher = audioCtx.createWaveShaper(); crusher.curve = makeCrushCurve(document.getElementById(`${prefix}_crush`).value);
-
         const flangerDelay = audioCtx.createDelay(); flangerDelay.delayTime.value = 0.005;
         const flangerLFO = audioCtx.createOscillator(); flangerLFO.frequency.value = 0.5; flangerLFO.start();
         const flangerGain = audioCtx.createGain(); flangerGain.gain.value = document.getElementById(`${prefix}_flange`).value;
         flangerLFO.connect(flangerGain); flangerGain.connect(flangerDelay.delayTime);
-        
         const dist = audioCtx.createWaveShaper(); dist.curve = makeDistortionCurve(document.getElementById(`${prefix}_dist`).value);
         const delay = audioCtx.createDelay(); delay.delayTime.value = 0.3;
         const feedback = audioCtx.createGain(); feedback.gain.value = document.getElementById(`${prefix}_delay`).value;
 
-        inputBus.connect(filter);
-        filter.connect(flangerDelay);
-        filter.connect(crusher);
-        flangerDelay.connect(crusher);
-        crusher.connect(dist);
-        dist.connect(outputBus); // Route to our new volume-controlled output bus
-        
-        dist.connect(delay);
-        delay.connect(feedback);
-        feedback.connect(delay);
-        feedback.connect(outputBus);
+        inputBus.connect(filter); filter.connect(flangerDelay); filter.connect(crusher); flangerDelay.connect(crusher);
+        crusher.connect(dist); dist.connect(outputBus); 
+        dist.connect(delay); delay.connect(feedback); feedback.connect(delay); feedback.connect(outputBus);
 
         return { inputBus, filter, wobbleLFO, wobbleGain, crusher, flangerGain, dist, delay, feedback, outputBus };
     }
@@ -362,62 +325,41 @@
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         masterGain = audioCtx.createGain(); masterGain.gain.value = 0.6;
         mediaStreamDest = audioCtx.createMediaStreamDestination();
-        
-        masterGain.connect(audioCtx.destination);
-        masterGain.connect(mediaStreamDest);
+        masterGain.connect(audioCtx.destination); masterGain.connect(mediaStreamDest);
 
-        // Visualizer Setup
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 2048;
-        bufferLength = analyser.frequencyBinCount;
-        dataArray = new Uint8Array(bufferLength);
-        masterGain.connect(analyser); // Feed entire mix into visualizer
+        analyser = audioCtx.createAnalyser(); analyser.fftSize = 2048;
+        bufferLength = analyser.frequencyBinCount; dataArray = new Uint8Array(bufferLength);
+        masterGain.connect(analyser); 
 
-        const canvas = document.getElementById('visualizer');
-        canvasCtx = canvas.getContext('2d');
-        drawVisualizer(); // Start loop
+        canvasCtx = document.getElementById('visualizer').getContext('2d');
+        drawVisualizer(); 
 
         synthFX = createFXChain(audioCtx, masterGain, 's');
         drumFX = createFXChain(audioCtx, masterGain, 'd');
-        
-        window.synthBus = synthFX.inputBus;
-        window.drumBus = drumFX.inputBus;
+        window.synthBus = synthFX.inputBus; window.drumBus = drumFX.inputBus;
     }
 
-    // Retro Oscilloscope Drawing Loop
     function drawVisualizer() {
         requestAnimationFrame(drawVisualizer);
         if (!analyser) return;
         
         analyser.getByteTimeDomainData(dataArray);
         const canvas = document.getElementById('visualizer');
-        const width = canvas.width;
-        const height = canvas.height;
+        const width = canvas.width; const height = canvas.height;
         
-        // Phosphor Trail Effect (fade out old frames slowly)
         canvasCtx.fillStyle = 'rgba(10, 10, 12, 0.25)'; 
         canvasCtx.fillRect(0, 0, width, height);
-        
-        canvasCtx.lineWidth = 3;
-        canvasCtx.strokeStyle = '#30d158'; // Classic Terminal Green
-        canvasCtx.shadowBlur = 10;
-        canvasCtx.shadowColor = '#30d158';
-        
+        canvasCtx.lineWidth = 3; canvasCtx.strokeStyle = '#30d158'; 
+        canvasCtx.shadowBlur = 10; canvasCtx.shadowColor = '#30d158';
         canvasCtx.beginPath();
-        const sliceWidth = width * 1.0 / bufferLength;
-        let x = 0;
         
+        const sliceWidth = width * 1.0 / bufferLength; let x = 0;
         for(let i = 0; i < bufferLength; i++) {
-            const v = dataArray[i] / 128.0; 
-            const y = v * height / 2;
-            if(i === 0) canvasCtx.moveTo(x, y);
-            else canvasCtx.lineTo(x, y);
+            const v = dataArray[i] / 128.0; const y = v * height / 2;
+            if(i === 0) canvasCtx.moveTo(x, y); else canvasCtx.lineTo(x, y);
             x += sliceWidth;
         }
-        canvasCtx.lineTo(width, height / 2);
-        canvasCtx.stroke();
-        
-        // Reset shadow for next frame to avoid lag
+        canvasCtx.lineTo(width, height / 2); canvasCtx.stroke();
         canvasCtx.shadowBlur = 0; 
     }
 
@@ -436,84 +378,49 @@
     document.body.addEventListener('pointerdown', initAudio, { once: true });
     document.body.addEventListener('keydown', initAudio, { once: true });
 
-    // --- Simple Key Mapping System ---
+    // --- Key Mapping ---
     function updateKeyboardHints() {
         document.querySelectorAll('.key').forEach(keyEl => {
-            const idx = parseInt(keyEl.dataset.idx);
-            let mappedKey = "";
+            const idx = parseInt(keyEl.dataset.idx); let mappedKey = "";
             for(let k in appState.keyMap){ if(appState.keyMap[k].type === 'synth' && appState.keyMap[k].el === idx) mappedKey = k.toUpperCase(); }
             keyEl.querySelector('.key-hint').innerText = mappedKey;
         });
-
         document.querySelectorAll('.track-hint').forEach(hintEl => {
-            const inst = hintEl.parentElement.parentElement.dataset.inst;
-            let mappedKey = "";
+            const inst = hintEl.parentElement.parentElement.dataset.inst; let mappedKey = "";
             for(let k in appState.keyMap){ if(appState.keyMap[k].type === 'drum' && appState.keyMap[k].inst === inst) mappedKey = k.toUpperCase(); }
             hintEl.innerText = mappedKey;
         });
     }
 
     function buildMappingUI() {
-        const drumGrid = document.getElementById('drumMappingGrid');
-        const synthGrid = document.getElementById('synthMappingGrid');
+        const drumGrid = document.getElementById('drumMappingGrid'); const synthGrid = document.getElementById('synthMappingGrid');
         drumGrid.innerHTML = ''; synthGrid.innerHTML = '';
 
-        const instruments = ['kick', 'snare', 'hat', 'clap', 'tom', 'cymbal'];
-        instruments.forEach(inst => {
-            let currentKey = "";
-            for(let k in appState.keyMap) if(appState.keyMap[k].type === 'drum' && appState.keyMap[k].inst === inst) currentKey = k;
-            
-            drumGrid.innerHTML += `
-                <div class="map-item">
-                    <span>${inst.toUpperCase()}</span>
-                    <input type="text" maxlength="1" value="${currentKey.toUpperCase()}" data-type="drum" data-id="${inst}">
-                </div>`;
+        ['kick', 'snare', 'hat', 'clap', 'tom', 'cymbal'].forEach(inst => {
+            let currentKey = ""; for(let k in appState.keyMap) if(appState.keyMap[k].type === 'drum' && appState.keyMap[k].inst === inst) currentKey = k;
+            drumGrid.innerHTML += `<div class="map-item"><span>${inst.toUpperCase()}</span><input type="text" maxlength="1" value="${currentKey.toUpperCase()}" data-type="drum" data-id="${inst}"></div>`;
         });
 
-        const synthKeys = Object.values(defaultState.keyMap).filter(v => v.type === 'synth').sort((a,b) => a.el - b.el);
-        synthKeys.forEach(s => {
-            let currentKey = "";
-            for(let k in appState.keyMap) if(appState.keyMap[k].type === 'synth' && appState.keyMap[k].el === s.el) currentKey = k;
-
-            synthGrid.innerHTML += `
-                <div class="map-item">
-                    <span>${s.label}</span>
-                    <input type="text" maxlength="1" value="${currentKey.toUpperCase()}" data-type="synth" data-id="${s.note}" data-el="${s.el}" data-label="${s.label}">
-                </div>`;
+        Object.values(defaultState.keyMap).filter(v => v.type === 'synth').sort((a,b) => a.el - b.el).forEach(s => {
+            let currentKey = ""; for(let k in appState.keyMap) if(appState.keyMap[k].type === 'synth' && appState.keyMap[k].el === s.el) currentKey = k;
+            synthGrid.innerHTML += `<div class="map-item"><span>${s.label}</span><input type="text" maxlength="1" value="${currentKey.toUpperCase()}" data-type="synth" data-id="${s.note}" data-el="${s.el}" data-label="${s.label}"></div>`;
         });
 
         document.querySelectorAll('.map-item input').forEach(input => {
             input.addEventListener('keydown', (e) => {
-                e.preventDefault();
-                if(!e.key.match(/^[a-zA-Z0-9]$/)) return; 
-                
-                const newKey = e.key.toLowerCase();
-                const type = e.target.dataset.type;
+                e.preventDefault(); if(!e.key.match(/^[a-zA-Z0-9]$/)) return; 
+                const newKey = e.key.toLowerCase(); const type = e.target.dataset.type;
                 const id = type === 'synth' ? parseFloat(e.target.dataset.id) : e.target.dataset.id;
-                
-                for(let k in appState.keyMap) {
-                    if(appState.keyMap[k].type === type && (appState.keyMap[k].note === id || appState.keyMap[k].inst === id)) {
-                        delete appState.keyMap[k];
-                    }
-                }
-                
+                for(let k in appState.keyMap) { if(appState.keyMap[k].type === type && (appState.keyMap[k].note === id || appState.keyMap[k].inst === id)) delete appState.keyMap[k]; }
                 if(type === 'synth') appState.keyMap[newKey] = { type: 'synth', note: id, el: parseInt(e.target.dataset.el), label: e.target.dataset.label };
                 if(type === 'drum') appState.keyMap[newKey] = { type: 'drum', inst: id };
-                
-                e.target.value = newKey.toUpperCase();
-                updateKeyboardHints();
-                saveState();
+                e.target.value = newKey.toUpperCase(); updateKeyboardHints(); saveState();
             });
         });
     }
 
-    document.getElementById('settingsBtn').addEventListener('click', () => {
-        buildMappingUI();
-        document.getElementById('settingsModal').style.display = 'flex';
-    });
-    document.getElementById('closeSettings').addEventListener('click', () => {
-        document.getElementById('settingsModal').style.display = 'none';
-    });
+    document.getElementById('settingsBtn').addEventListener('click', () => { buildMappingUI(); document.getElementById('settingsModal').style.display = 'flex'; });
+    document.getElementById('closeSettings').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
 
     window.addEventListener('keydown', (e) => {
         if(document.getElementById('settingsModal').style.display === 'flex') return; 
@@ -524,64 +431,40 @@
             if (appState.keyMap[key].type === 'drum') playDrum(appState.keyMap[key].inst, audioCtx.currentTime);
         }
     });
-
     window.addEventListener('keyup', (e) => {
         if(document.getElementById('settingsModal').style.display === 'flex') return;
         const key = e.key.toLowerCase();
-        if (appState.keyMap[key] && appState.keyMap[key].type === 'synth') {
-            stopTone(appState.keyMap[key].note, document.querySelector(`[data-idx="${appState.keyMap[key].el}"]`));
-        }
+        if (appState.keyMap[key] && appState.keyMap[key].type === 'synth') stopTone(appState.keyMap[key].note, document.querySelector(`[data-idx="${appState.keyMap[key].el}"]`));
     });
 
-    // --- Synthesizer & Loops ---
+    // --- Synth ---
     const activeOscillators = {}; 
     let isRecordingLoop = false, loopStartTime = 0, currentLoopData = [];
 
     const octLabel = document.getElementById('octLabel');
-    document.getElementById('octUp').addEventListener('click', () => {
-        octaveShift++; octLabel.innerText = `Oct: ${octaveShift > 0 ? '+' : ''}${octaveShift}`;
-    });
-    document.getElementById('octDown').addEventListener('click', () => {
-        octaveShift--; octLabel.innerText = `Oct: ${octaveShift > 0 ? '+' : ''}${octaveShift}`;
-    });
+    document.getElementById('octUp').addEventListener('click', () => { octaveShift++; octLabel.innerText = `Oct: ${octaveShift > 0 ? '+' : ''}${octaveShift}`; });
+    document.getElementById('octDown').addEventListener('click', () => { octaveShift--; octLabel.innerText = `Oct: ${octaveShift > 0 ? '+' : ''}${octaveShift}`; });
 
     function playTone(baseFreq, keyElement, isPlayback = false) {
-        if (!audioCtx) initAudio();
-        if (activeOscillators[baseFreq]) return; 
-
+        if (!audioCtx) initAudio(); if (activeOscillators[baseFreq]) return; 
         const freq = baseFreq * Math.pow(2, octaveShift); 
         const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
         osc.type = 'sawtooth'; osc.frequency.value = freq;
-        
-        gain.gain.setValueAtTime(0, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
-
-        osc.connect(gain); gain.connect(window.synthBus || audioCtx.destination);
-        osc.start();
-        
-        activeOscillators[baseFreq] = { osc, gain };
-        if (keyElement) keyElement.classList.add('active');
-
-        if (isRecordingLoop && !isPlayback) {
-            currentLoopData.push({ type: 'on', freq: baseFreq, time: audioCtx.currentTime - loopStartTime, oct: octaveShift });
-        }
+        gain.gain.setValueAtTime(0, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+        osc.connect(gain); gain.connect(window.synthBus || audioCtx.destination); osc.start();
+        activeOscillators[baseFreq] = { osc, gain }; if (keyElement) keyElement.classList.add('active');
+        if (isRecordingLoop && !isPlayback) currentLoopData.push({ type: 'on', freq: baseFreq, time: audioCtx.currentTime - loopStartTime, oct: octaveShift });
     }
 
     function stopTone(baseFreq, keyElement, isPlayback = false) {
         if (activeOscillators[baseFreq]) {
             const { osc, gain } = activeOscillators[baseFreq];
-            gain.gain.cancelScheduledValues(audioCtx.currentTime);
-            gain.gain.setValueAtTime(gain.gain.value, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-            osc.stop(audioCtx.currentTime + 0.1);
+            gain.gain.cancelScheduledValues(audioCtx.currentTime); gain.gain.setValueAtTime(gain.gain.value, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1); osc.stop(audioCtx.currentTime + 0.1);
             delete activeOscillators[baseFreq];
         }
         if (keyElement) keyElement.classList.remove('active');
-
-        if (isRecordingLoop && !isPlayback) {
-            currentLoopData.push({ type: 'off', freq: baseFreq, time: audioCtx.currentTime - loopStartTime, oct: octaveShift });
-        }
+        if (isRecordingLoop && !isPlayback) currentLoopData.push({ type: 'off', freq: baseFreq, time: audioCtx.currentTime - loopStartTime, oct: octaveShift });
     }
 
     const recLoopBtn = document.getElementById('recLoopBtn');
@@ -599,17 +482,13 @@
                     appState.savedPills[slotIdx] = {
                         duration: loopDuration, events: currentLoopData,
                         effects: {
-                            vol: document.getElementById('s_vol').value,
-                            delay: document.getElementById('s_delay').value,
-                            dist: document.getElementById('s_dist').value,
-                            crush: document.getElementById('s_crush').value,
-                            flange: document.getElementById('s_flange').value,
-                            wobble: document.getElementById('s_wobble').value,
+                            vol: document.getElementById('s_vol').value, delay: document.getElementById('s_delay').value,
+                            dist: document.getElementById('s_dist').value, crush: document.getElementById('s_crush').value,
+                            flange: document.getElementById('s_flange').value, wobble: document.getElementById('s_wobble').value,
                             filterFreq: document.getElementById('s_filterFreq').value
                         }
                     };
-                    renderPills();
-                    saveState();
+                    renderPills(); saveState();
                 } else { alert("All 8 slots are full!"); }
             }
         }
@@ -621,15 +500,12 @@
     function renderPills() {
         pillContainer.innerHTML = '';
         for (let i = 0; i < 8; i++) {
-            const pill = document.createElement('div');
-            pill.className = `pill ${appState.savedPills[i] ? 'filled' : ''}`;
+            const pill = document.createElement('div'); pill.className = `pill ${appState.savedPills[i] ? 'filled' : ''}`;
             pill.innerText = appState.savedPills[i] ? `L${i + 1}` : `S${i + 1}`;
-            
             if (appState.savedPills[i]) {
                 pill.addEventListener('click', () => {
                     pill.classList.toggle('playing');
-                    if (pill.classList.contains('playing')) playPillLoop(i, pill);
-                    else stopPillLoop(i);
+                    if (pill.classList.contains('playing')) playPillLoop(i, pill); else stopPillLoop(i);
                 });
             }
             pillContainer.appendChild(pill);
@@ -638,24 +514,18 @@
     renderPills();
 
     function playPillLoop(idx, pillEl) {
-        const loop = appState.savedPills[idx];
-        if(!loop) return;
-        
-        document.getElementById('s_vol').value = loop.effects.vol || 0.8; document.getElementById('s_vol').dispatchEvent(new Event('input'));
-        document.getElementById('s_delay').value = loop.effects.delay; document.getElementById('s_delay').dispatchEvent(new Event('input'));
-        document.getElementById('s_dist').value = loop.effects.dist; document.getElementById('s_dist').dispatchEvent(new Event('input'));
-        document.getElementById('s_crush').value = loop.effects.crush; document.getElementById('s_crush').dispatchEvent(new Event('input'));
-        document.getElementById('s_flange').value = loop.effects.flange; document.getElementById('s_flange').dispatchEvent(new Event('input'));
-        document.getElementById('s_wobble').value = loop.effects.wobble; document.getElementById('s_wobble').dispatchEvent(new Event('input'));
-        document.getElementById('s_filterFreq').value = loop.effects.filterFreq; document.getElementById('s_filterFreq').dispatchEvent(new Event('input'));
+        const loop = appState.savedPills[idx]; if(!loop) return;
+        ['vol', 'delay', 'dist', 'crush', 'flange', 'wobble', 'filterFreq'].forEach(fx => {
+            document.getElementById(`s_${fx}`).value = loop.effects[fx] || defaultState.synthFx[fx];
+            document.getElementById(`s_${fx}`).dispatchEvent(new Event('input'));
+        });
         
         const playCycle = () => {
             if(!pillEl.classList.contains('playing')) return;
             loop.events.forEach(ev => {
                 const timer = setTimeout(() => {
                     const keyEl = document.querySelector(`.key[data-note="${ev.freq}"]`);
-                    const tempOct = octaveShift;
-                    octaveShift = ev.oct; 
+                    const tempOct = octaveShift; octaveShift = ev.oct; 
                     if (ev.type === 'on') playTone(ev.freq, keyEl, true);
                     if (ev.type === 'off') stopTone(ev.freq, keyEl, true);
                     octaveShift = tempOct; 
@@ -668,34 +538,20 @@
         playCycle();
     }
 
-    function stopPillLoop(idx) {
-        activeLoopTimers = activeLoopTimers.filter(t => {
-            if (t.idx === idx) { clearTimeout(t.timer); return false; }
-            return true;
-        });
-    }
+    function stopPillLoop(idx) { activeLoopTimers = activeLoopTimers.filter(t => { if (t.idx === idx) { clearTimeout(t.timer); return false; } return true; }); }
 
-    // --- Drum System ---
+    // --- Drums ---
     function playDrum(type, time) {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
         osc.connect(gain); gain.connect(window.drumBus || audioCtx.destination);
 
-        if (type === 'kick') {
-            osc.frequency.setValueAtTime(150, time); osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-            gain.gain.setValueAtTime(1, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-            osc.start(time); osc.stop(time + 0.5);
-        } else if (type === 'tom') {
-            osc.frequency.setValueAtTime(200, time); osc.frequency.exponentialRampToValueAtTime(50, time + 0.4);
-            gain.gain.setValueAtTime(0.8, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.4);
-            osc.start(time); osc.stop(time + 0.4);
-        } else if (type === 'snare') {
-            osc.type = 'triangle'; osc.frequency.setValueAtTime(250, time);
-            gain.gain.setValueAtTime(0.8, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-            osc.start(time); osc.stop(time + 0.2); createNoise(time, 0.2, 1000, 'highpass');
-        } else if (type === 'hat') { createNoise(time, 0.05, 5000, 'highpass');
-        } else if (type === 'clap') { createNoise(time, 0.15, 800, 'bandpass'); createNoise(time + 0.02, 0.15, 800, 'bandpass'); 
-        } else if (type === 'cymbal') { createNoise(time, 0.8, 3000, 'highpass'); }
+        if (type === 'kick') { osc.frequency.setValueAtTime(150, time); osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5); gain.gain.setValueAtTime(1, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5); osc.start(time); osc.stop(time + 0.5); } 
+        else if (type === 'tom') { osc.frequency.setValueAtTime(200, time); osc.frequency.exponentialRampToValueAtTime(50, time + 0.4); gain.gain.setValueAtTime(0.8, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.4); osc.start(time); osc.stop(time + 0.4); } 
+        else if (type === 'snare') { osc.type = 'triangle'; osc.frequency.setValueAtTime(250, time); gain.gain.setValueAtTime(0.8, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2); osc.start(time); osc.stop(time + 0.2); createNoise(time, 0.2, 1000, 'highpass'); } 
+        else if (type === 'hat') { createNoise(time, 0.05, 5000, 'highpass'); } 
+        else if (type === 'clap') { createNoise(time, 0.15, 800, 'bandpass'); createNoise(time + 0.02, 0.15, 800, 'bandpass'); } 
+        else if (type === 'cymbal') { createNoise(time, 0.8, 3000, 'highpass'); }
     }
 
     function createNoise(time, duration, filterFreq, filterType) {
@@ -711,40 +567,24 @@
     const instruments = ['kick', 'snare', 'hat', 'clap', 'tom', 'cymbal'];
 
     function scheduleNote(stepNumber, time) {
-        requestAnimationFrame(() => {
-            document.querySelectorAll('.step').forEach(s => s.classList.remove('current'));
-            document.querySelectorAll(`.step[data-step="${stepNumber}"]`).forEach(s => s.classList.add('current'));
-        });
+        requestAnimationFrame(() => { document.querySelectorAll('.step').forEach(s => s.classList.remove('current')); document.querySelectorAll(`.step[data-step="${stepNumber}"]`).forEach(s => s.classList.add('current')); });
         instruments.forEach(inst => { if (appState.tracksData[inst][stepNumber]) playDrum(inst, time); });
     }
 
     function scheduler() {
-        while (nextNoteTime < audioCtx.currentTime + 0.1) {
-            scheduleNote(currentStep, nextNoteTime);
-            nextNoteTime += 0.25 * (60.0 / bpm); currentStep = (currentStep + 1) % 16;
-        }
+        while (nextNoteTime < audioCtx.currentTime + 0.1) { scheduleNote(currentStep, nextNoteTime); nextNoteTime += 0.25 * (60.0 / bpm); currentStep = (currentStep + 1) % 16; }
         timerID = window.setTimeout(scheduler, 25.0);
     }
 
-    // Render Sequencer Grid
     const sequencerDiv = document.getElementById('sequencer');
     instruments.forEach(inst => {
         const trackDiv = document.createElement('div'); trackDiv.className = 'track'; trackDiv.dataset.inst = inst;
-        
-        const lbl = document.createElement('div'); lbl.className = 'track-label';
-        lbl.innerHTML = `${inst} <span class="track-hint ui-hint"></span>`;
-        
-        trackDiv.appendChild(lbl);
-        const stepsDiv = document.createElement('div'); stepsDiv.className = 'steps';
+        const lbl = document.createElement('div'); lbl.className = 'track-label'; lbl.innerHTML = `${inst} <span class="track-hint ui-hint"></span>`;
+        trackDiv.appendChild(lbl); const stepsDiv = document.createElement('div'); stepsDiv.className = 'steps';
         for (let i = 0; i < 16; i++) {
             const step = document.createElement('div'); step.className = 'step'; step.dataset.step = i;
             if(appState.tracksData[inst][i]) step.classList.add('active'); 
-            
-            step.addEventListener('pointerdown', () => { 
-                appState.tracksData[inst][i] = !appState.tracksData[inst][i]; 
-                step.classList.toggle('active'); 
-                saveState();
-            });
+            step.addEventListener('pointerdown', () => { appState.tracksData[inst][i] = !appState.tracksData[inst][i]; step.classList.toggle('active'); saveState(); });
             stepsDiv.appendChild(step);
         }
         trackDiv.appendChild(stepsDiv); sequencerDiv.appendChild(trackDiv);
@@ -753,92 +593,48 @@
     updateKeyboardHints();
 
     const keyboard = document.getElementById('keyboard'); let isSwiping = false;
-    keyboard.addEventListener('pointerdown', (e) => {
-        isSwiping = true; const key = document.elementFromPoint(e.clientX, e.clientY);
-        if (key && key.classList.contains('key')) playTone(parseFloat(key.dataset.note), key);
-    });
+    keyboard.addEventListener('pointerdown', (e) => { isSwiping = true; const key = document.elementFromPoint(e.clientX, e.clientY); if (key && key.classList.contains('key')) playTone(parseFloat(key.dataset.note), key); });
     keyboard.addEventListener('pointermove', (e) => {
-        if (!isSwiping) return;
-        const key = document.elementFromPoint(e.clientX, e.clientY);
-        Object.keys(activeOscillators).forEach(baseFreq => {
-            if (!key || parseFloat(key.dataset.note) !== parseFloat(baseFreq)) {
-                stopTone(baseFreq, document.querySelector(`.key[data-note="${baseFreq}"]`));
-            }
-        });
+        if (!isSwiping) return; const key = document.elementFromPoint(e.clientX, e.clientY);
+        Object.keys(activeOscillators).forEach(baseFreq => { if (!key || parseFloat(key.dataset.note) !== parseFloat(baseFreq)) { stopTone(baseFreq, document.querySelector(`.key[data-note="${baseFreq}"]`)); } });
         if (key && key.classList.contains('key')) playTone(parseFloat(key.dataset.note), key);
     });
-    window.addEventListener('pointerup', () => {
-        isSwiping = false;
-        Object.keys(activeOscillators).forEach(baseFreq => stopTone(baseFreq, document.querySelector(`.key[data-note="${baseFreq}"]`)));
-    });
+    window.addEventListener('pointerup', () => { isSwiping = false; Object.keys(activeOscillators).forEach(baseFreq => stopTone(baseFreq, document.querySelector(`.key[data-note="${baseFreq}"]`))); });
 
-    // --- Binding Sliders to Independent FX Chains & Saving State ---
     function bindFXSliders(prefix, getFXChain) {
-        const saveAndApply = (id, valueProcessor) => {
-            document.getElementById(`${prefix}_${id}`).addEventListener('input', (e) => { 
-                const fx = getFXChain(); 
-                if(fx) valueProcessor(fx, parseFloat(e.target.value)); 
-                saveState();
-            });
-        };
-
-        saveAndApply('vol', (fx, val) => fx.outputBus.gain.value = val);
-        saveAndApply('delay', (fx, val) => fx.feedback.gain.value = val);
-        saveAndApply('dist', (fx, val) => fx.dist.curve = makeDistortionCurve(val));
-        saveAndApply('crush', (fx, val) => fx.crusher.curve = makeCrushCurve(val));
-        saveAndApply('flange', (fx, val) => fx.flangerGain.gain.value = val);
-        saveAndApply('wobble', (fx, val) => { fx.wobbleGain.gain.value = val * 100; fx.wobbleLFO.frequency.value = val / 2; });
+        const saveAndApply = (id, valueProcessor) => { document.getElementById(`${prefix}_${id}`).addEventListener('input', (e) => { const fx = getFXChain(); if(fx) valueProcessor(fx, parseFloat(e.target.value)); saveState(); }); };
+        saveAndApply('vol', (fx, val) => fx.outputBus.gain.value = val); saveAndApply('delay', (fx, val) => fx.feedback.gain.value = val);
+        saveAndApply('dist', (fx, val) => fx.dist.curve = makeDistortionCurve(val)); saveAndApply('crush', (fx, val) => fx.crusher.curve = makeCrushCurve(val));
+        saveAndApply('flange', (fx, val) => fx.flangerGain.gain.value = val); saveAndApply('wobble', (fx, val) => { fx.wobbleGain.gain.value = val * 100; fx.wobbleLFO.frequency.value = val / 2; });
         saveAndApply('filterFreq', (fx, val) => fx.filter.frequency.value = val);
     }
+    bindFXSliders('d', () => drumFX); bindFXSliders('s', () => synthFX);
 
-    bindFXSliders('d', () => drumFX);
-    bindFXSliders('s', () => synthFX);
-
-    document.getElementById('bpmSlider').addEventListener('input', (e) => { 
-        bpm = parseFloat(e.target.value); document.getElementById('bpmVal').innerText = bpm; 
-        saveState();
-    });
+    document.getElementById('bpmSlider').addEventListener('input', (e) => { bpm = parseFloat(e.target.value); document.getElementById('bpmVal').innerText = bpm; saveState(); });
 
     document.getElementById('playBtn').addEventListener('click', (e) => {
         initAudio(); isPlaying = !isPlaying; e.target.innerText = isPlaying ? "Stop" : "Play";
-        if (isPlaying) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            currentStep = 0; nextNoteTime = audioCtx.currentTime + 0.05; scheduler();
-        } else {
-            window.clearTimeout(timerID); document.querySelectorAll('.step').forEach(s => s.classList.remove('current'));
-        }
+        if (isPlaying) { if (audioCtx.state === 'suspended') audioCtx.resume(); currentStep = 0; nextNoteTime = audioCtx.currentTime + 0.05; scheduler(); } 
+        else { window.clearTimeout(timerID); document.querySelectorAll('.step').forEach(s => s.classList.remove('current')); }
     });
 
     let mediaRecorder, audioChunks = [], recordInterval;
     document.getElementById('recordBtn').addEventListener('click', function() {
-        if (!audioCtx) initAudio();
-        if (mediaRecorder && mediaRecorder.state === "recording") return;
-
-        audioChunks = [];
-        mediaRecorder = new MediaRecorder(mediaStreamDest.stream);
+        if (!audioCtx) initAudio(); if (mediaRecorder && mediaRecorder.state === "recording") return;
+        audioChunks = []; mediaRecorder = new MediaRecorder(mediaStreamDest.stream);
         mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = () => {
             const blob = new Blob(audioChunks); const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.style.display = 'none'; a.href = url;
-            a.download = `Studio_Recording_${new Date().getTime()}`; 
-            document.body.appendChild(a); a.click();
-            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+            const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = `Studio_Recording_${new Date().getTime()}`; 
+            document.body.appendChild(a); a.click(); setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
             this.classList.remove('recording'); document.getElementById('recTimer').style.display = 'none';
         };
-
         mediaRecorder.start(); this.classList.add('recording');
-        let secondsLeft = 60; const timerDisplay = document.getElementById('recTimer');
-        timerDisplay.style.display = 'block'; timerDisplay.innerText = `0:${secondsLeft}`;
-        recordInterval = setInterval(() => {
-            secondsLeft--; timerDisplay.innerText = `0:${secondsLeft < 10 ? '0' : ''}${secondsLeft}`;
-            if (secondsLeft <= 0) { clearInterval(recordInterval); if (mediaRecorder.state === "recording") mediaRecorder.stop(); }
-        }, 1000);
+        let secondsLeft = 60; const timerDisplay = document.getElementById('recTimer'); timerDisplay.style.display = 'block'; timerDisplay.innerText = `0:${secondsLeft}`;
+        recordInterval = setInterval(() => { secondsLeft--; timerDisplay.innerText = `0:${secondsLeft < 10 ? '0' : ''}${secondsLeft}`; if (secondsLeft <= 0) { clearInterval(recordInterval); if (mediaRecorder.state === "recording") mediaRecorder.stop(); } }, 1000);
     });
 
-    document.getElementById('fullscreenBtn').addEventListener('click', () => {
-        if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(e => console.log(e)); } 
-        else { document.exitFullscreen(); }
-    });
+    document.getElementById('fullscreenBtn').addEventListener('click', () => { if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(e => console.log(e)); } else { document.exitFullscreen(); } });
 
 </script>
 </body>
