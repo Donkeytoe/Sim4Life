@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart PNG to Vector Converter</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            max-width: 1000px; 
+            margin: 2rem auto; 
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1, p { text-align: center; }
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .controls-panel {
+            flex: 1;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .canvas-panel {
+            flex: 2;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        .box { 
+            border: 2px dashed #ccc; 
+            border-radius: 8px;
+            padding: 10px; 
+            width: 300px; 
+            height: 300px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: #fff; 
+            overflow: hidden;
+            flex-direction: column;
+            position: relative;
+        }
+        .box-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            background: rgba(255,255,255,0.8);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        img, svg, canvas { 
+            max-width: 100%; 
+            max-height: 100%; 
+            object-fit: contain;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        .control-group label { font-size: 14px; font-weight: bold; }
+        input[type="range"] { width: 100%; }
+        button { 
+            background-color: #007bff; color: white; border: none;
+            border-radius: 4px; padding: 12px; font-size: 16px; 
+            cursor: pointer; transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+        button:hover:not(:disabled) { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #status { font-size: 14px; color: #007bff; font-weight: bold; text-align: center; height: 20px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js"></script>
+</head>
+<body>
+
+    <h1>Smart Line Art Vectorizer</h1>
+    <p>Optimized for low-res files. Adjust the sliders to clean up the image before tracing.</p>
+
+    <div class="main-layout">
+        <div class="controls-panel">
+            <input type="file" id="imageInput" accept="image/png, image/jpeg">
+            
+            <div class="control-group">
+                <label for="threshold">1. Black/White Threshold (<span id="threshVal">128</span>)</label>
+                <input type="range" id="threshold" min="1" max="254" value="128">
+                <small style="font-size: 11px; color: #666;">Forces blurry gray pixels into crisp black or white.</small>
+            </div>
+
+            <div class="control-group">
+                <label for="smoothing">2. Edge Smoothing (<span id="smoothVal">1</span>)</label>
+                <input type="range" id="smoothing" min="0" max="5" value="1" step="0.5">
+                <small style="font-size: 11px; color: #666;">Blurs the image slightly to hide jagged low-res pixels.</small>
+            </div>
+
+            <div class="control-group">
+                <label for="noise">3. Noise Reduction (<span id="noiseVal">8</span>)</label>
+                <input type="range" id="noise" min="0" max="50" value="8">
+                <small style="font-size: 11px; color: #666;">Ignores stray specks and tiny artifacts.</small>
+            </div>
+
+            <div id="status"></div>
+            <button id="downloadBtn" disabled>Download Vector (SVG)</button>
+        </div>
+
+        <div class="canvas-panel">
+            <div class="box">
+                <div class="box-label">Processed Input</div>
+                <span id="placeholderText" style="color: #888;">Upload an image</span>
+                <canvas id="prepCanvas" style="display: none;"></canvas>
+            </div>
+            <div class="box">
+                <div class="box-label">Vector Output</div>
+                <div id="svgContainer" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <span style="color: #888;">Preview will appear here</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const prepCanvas = document.getElementById('prepCanvas');
+        const ctx = prepCanvas.getContext('2d', { willReadFrequently: true });
+        const svgContainer = document.getElementById('svgContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusText = document.getElementById('status');
+        const placeholderText = document.getElementById('placeholderText');
+
+        // Sliders
+        const thresholdSlider = document.getElementById('threshold');
+        const smoothingSlider = document.getElementById('smoothing');
+        const noiseSlider = document.getElementById('noise');
+
+        let originalImage = new Image();
+        let currentSvgString = '';
+        let traceTimeout;
+
+        // 1. Load the Image
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                originalImage.onload = () => {
+                    placeholderText.style.display = 'none';
+                    prepCanvas.style.display = 'block';
+                    processAndTrace(); // Initial trace
+                };
+                originalImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 2. Update values on slider change (using 'change' instead of 'input' to prevent lag while dragging)
+        [thresholdSlider, smoothingSlider, noiseSlider].forEach(slider => {
+            slider.addEventListener('change', processAndTrace);
+            slider.addEventListener('input', (e) => {
+                // Just update the text labels while dragging
+                document.getElementById(e.target.id === 'threshold' ? 'threshVal' : e.target.id === 'smoothing' ? 'smoothVal' : 'noiseVal').textContent = e.target.value;
+            });
+        });
+
+        // 3. The Core Logic: Pre-process and Trace
+        function processAndTrace() {
+            if (!originalImage.src) return;
+            
+            statusText.textContent = "Processing...";
+            downloadBtn.disabled = true;
+
+            // Set canvas to match image dimensions
+            prepCanvas.width = originalImage.width;
+            prepCanvas.height = originalImage.height;
+
+            // Draw original image
+            ctx.drawImage(originalImage, 0, 0);
+
+            // Get threshold value
+            const threshold = parseInt(thresholdSlider.value);
+            
+            // Apply Black & White Threshold to clean up blurry low-res edges
+            const imageData = ctx.getImageData(0, 0, prepCanvas.width, prepCanvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                // Calculate perceived brightness (luminance)
+                const brightness = (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
+                
+                // If the pixel has transparency, treat it as white background for tracing purposes
+                if (data[i+3] < 128) {
+                    data[i] = 255; data[i+1] = 255; data[i+2] = 255; data[i+3] = 255;
+                } else {
+                    // Force into pure black or pure white based on slider
+                    const color = brightness < threshold ? 0 : 255;
+                    data[i] = color;     // Red
+                    data[i+1] = color;   // Green
+                    data[i+2] = color;   // Blue
+                    data[i+3] = 255;     // Alpha (fully opaque)
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+
+            // Extract the cleaned-up image as a data URL
+            const processedDataUrl = prepCanvas.toDataURL('image/png');
+
+            // Configure ImageTracer with dynamic slider values
+            const tracerOptions = {
+                corsenabled: false,
+                ltres: 1,
+                qtres: 1,
+                pathomit: parseInt(noiseSlider.value),
+                blurradius: parseFloat(smoothingSlider.value), // This tells ImageTracer to blur the harsh pixels before tracing curves
+                colorsampling: 0,
+                numberofcolors: 2,  
+                mincolorratio: 0,
+                colorquantcycles: 1,
+                pal: [{r:0,g:0,b:0,a:255}, {r:255,g:255,b:255,a:255}] 
+            };
+
+            // Trace it!
+            ImageTracer.imageToSVG(
+                processedDataUrl,
+                function(svgstr) {
+                    currentSvgString = svgstr;
+                    svgContainer.innerHTML = svgstr;
+                    statusText.textContent = "Trace complete!";
+                    downloadBtn.disabled = false;
+                    
+                    // Clear status after 2 seconds
+                    setTimeout(() => statusText.textContent = "", 2000);
+                },
+                tracerOptions
+            );
+        }
+
+        // 4. Download Handler
+        downloadBtn.addEventListener('click', function() {
+            if (!currentSvgString) return;
+            const blob = new Blob([currentSvgString], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = 'smart-vector.svg';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>

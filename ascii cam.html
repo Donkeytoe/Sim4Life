@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Webcam Filter</title>
+    <style>
+        body {
+            background-color: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        #ascii-container {
+            width: 1280px;
+            height: 720px;
+            background-color: #000;
+            border: 2px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative; 
+        }
+
+        #out-canvas {
+            width: 1280px;
+            height: 720px;
+            display: block;
+        }
+
+        #measuring-tape {
+            font-family: 'Courier New', Courier, monospace;
+            position: absolute;
+            visibility: hidden;
+            white-space: pre;
+            letter-spacing: 2px;
+        }
+
+        /* --- Settings UI Styles --- */
+        #settings-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(30, 30, 30, 0.8);
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            z-index: 10;
+            transition: background 0.2s;
+        }
+
+        #settings-btn:hover {
+            background: rgba(60, 60, 60, 0.8);
+        }
+
+        #settings-panel {
+            position: absolute;
+            top: 55px;
+            right: 15px;
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid #444;
+            padding: 20px;
+            border-radius: 8px;
+            color: #ddd;
+            display: none; 
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+            width: 260px; 
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .slider-header {
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #00ff00;
+            margin-top: 5px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .num-input {
+            width: 55px; 
+            background: #111;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .num-input:focus {
+            outline: none;
+            border-color: #00ff00;
+        }
+        
+        input[type=range], select {
+            width: 100%;
+        }
+
+        select {
+            background: #111;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 4px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid #444;
+            margin: 5px 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <span id="measuring-tape">@</span>
+
+    <div id="ascii-container">
+        <button id="settings-btn">⚙ Settings</button>
+        <div id="settings-panel">
+            
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label>Color Mode</label>
+                </div>
+                <select id="select-color-mode">
+                    <option value="mono">Monochrome (Base Colors)</option>
+                    <option value="camera">Camera Colors</option>
+                    <option value="duotone">Duotone (Highlights/Shadows)</option>
+                    <option value="random">Random Glitch</option>
+                </select>
+            </div>
+
+            <hr>
+
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label>Font Size (px)</label>
+                    <input type="number" id="num-size" class="num-input" value="10" min="4" max="150" step="1">
+                </div>
+                <input type="range" id="slide-size" min="4" max="150" value="10" step="1">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label>Trippy Delay (%)</label>
+                    <input type="number" id="num-delay" class="num-input" value="0" min="0" max="99.9" step="0.1">
+                </div>
+                <input type="range" id="slide-delay" min="0" max="99.9" value="0" step="0.1">
+            </div>
+            
+            <hr>
+            
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label>Time Hue (Monochrome only)</label>
+                    <input type="checkbox" id="check-hue">
+                </div>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label>Hue Speed</label>
+                    <input type="number" id="num-hue-speed" class="num-input" value="5" min="0.1" max="100" step="0.1">
+                </div>
+                <input type="range" id="slide-hue-speed" min="0.1" max="100" value="5" step="0.1">
+            </div>
+
+            <hr>
+
+            <div class="section-title">Base / Highlight Color</div>
+
+            <div class="slider-group">
+                <div class="slider-header"><label>Red</label><input type="number" id="num-r" class="num-input" value="0" min="0" max="255"></div>
+                <input type="range" id="slide-r" min="0" max="255" value="0" step="1">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header"><label>Green</label><input type="number" id="num-g" class="num-input" value="255" min="0" max="255"></div>
+                <input type="range" id="slide-g" min="0" max="255" value="255" step="1">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header"><label>Blue</label><input type="number" id="num-b" class="num-input" value="0" min="0" max="255"></div>
+                <input type="range" id="slide-b" min="0" max="255" value="0" step="1">
+            </div>
+
+            <hr>
+
+            <div class="section-title">Shadow Color (Duotone)</div>
+
+            <div class="slider-group">
+                <div class="slider-header"><label>Shadow Red</label><input type="number" id="num-sr" class="num-input" value="30" min="0" max="255"></div>
+                <input type="range" id="slide-sr" min="0" max="255" value="30" step="1">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header"><label>Shadow Green</label><input type="number" id="num-sg" class="num-input" value="0" min="0" max="255"></div>
+                <input type="range" id="slide-sg" min="0" max="255" value="0" step="1">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header"><label>Shadow Blue</label><input type="number" id="num-sb" class="num-input" value="60" min="0" max="255"></div>
+                <input type="range" id="slide-sb" min="0" max="255" value="60" step="1">
+            </div>
+
+        </div>
+
+        <canvas id="out-canvas" width="1280" height="720"></canvas>
+    </div>
+
+    <video id="video" style="display: none;" autoplay playsinline></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const outCanvas = document.getElementById('out-canvas');
+        const outCtx = outCanvas.getContext('2d', { alpha: false }); 
+        const measuringTape = document.getElementById('measuring-tape');
+
+        const density = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+
+        let cols = 160; 
+        let rows = 90;  
+        let charWidth = 0;
+        let charHeight = 0;
+        let currentFontSize = 10;
+        let trailAlpha = 1.0; 
+        
+        // Base / Highlight Colors
+        let r = 0, g = 255, b = 0;
+        
+        // Shadow Colors (Defaulting to the old dark purple so it looks familiar)
+        let sr = 30, sg = 0, sb = 60;
+
+        let isTimeHue = false;
+        let currentHue = 0;
+        let hueSpeed = 5;
+        let colorMode = 'mono'; 
+
+        function updateResolution(size) {
+            if (size < 4) size = 4; 
+            currentFontSize = size;
+
+            measuringTape.style.fontSize = size + 'px';
+            measuringTape.style.lineHeight = (size - 1) + 'px'; 
+            
+            const rect = measuringTape.getBoundingClientRect();
+            charWidth = rect.width;
+            charHeight = rect.height;
+
+            cols = Math.floor(1280 / charWidth);
+            rows = Math.floor(720 / charHeight);
+            
+            canvas.width = cols;
+            canvas.height = rows;
+        }
+
+        // --- Settings Logic ---
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsPanel = document.getElementById('settings-panel');
+
+        settingsBtn.addEventListener('click', () => {
+            const isHidden = settingsPanel.style.display === '' || settingsPanel.style.display === 'none';
+            settingsPanel.style.display = isHidden ? 'flex' : 'none';
+        });
+
+        document.getElementById('select-color-mode').addEventListener('change', (e) => {
+            colorMode = e.target.value;
+        });
+
+        function syncControl(idBase, callback) {
+            const slider = document.getElementById(`slide-${idBase}`);
+            const numBox = document.getElementById(`num-${idBase}`);
+
+            slider.addEventListener('input', (e) => {
+                numBox.value = e.target.value; 
+                callback(e.target.value);
+            });
+
+            numBox.addEventListener('input', (e) => {
+                let val = e.target.value;
+                if(val === '') return; 
+                slider.value = val;    
+                callback(val);
+            });
+        }
+
+        syncControl('size', (val) => updateResolution(parseFloat(val)));
+        syncControl('delay', (val) => { trailAlpha = 1.0 - (parseFloat(val) / 100); });
+        syncControl('hue-speed', (val) => { hueSpeed = parseFloat(val); });
+        
+        // Base colors
+        syncControl('r', (val) => { r = val; });
+        syncControl('g', (val) => { g = val; });
+        syncControl('b', (val) => { b = val; });
+
+        // Shadow colors
+        syncControl('sr', (val) => { sr = val; });
+        syncControl('sg', (val) => { sg = val; });
+        syncControl('sb', (val) => { sb = val; });
+
+        document.getElementById('check-hue').addEventListener('change', (e) => {
+            isTimeHue = e.target.checked;
+        });
+
+        updateResolution(10);
+
+        // --- Webcam Logic ---
+        navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } })
+            .then(stream => {
+                video.srcObject = stream;
+                video.play();
+                video.addEventListener('play', () => {
+                    requestAnimationFrame(renderAscii);
+                });
+            })
+            .catch(err => {
+                console.error("Error accessing webcam: ", err);
+            });
+
+        function renderAscii() {
+            if (video.paused || video.ended || cols === 0 || rows === 0) {
+                return requestAnimationFrame(renderAscii);
+            }
+
+            ctx.globalAlpha = trailAlpha;
+            ctx.drawImage(video, 0, 0, cols, rows);
+            ctx.globalAlpha = 1.0; 
+
+            const imageData = ctx.getImageData(0, 0, cols, rows);
+            const pixels = imageData.data;
+
+            outCtx.fillStyle = '#000000'; 
+            outCtx.fillRect(0, 0, 1280, 720);
+            
+            outCtx.font = `${currentFontSize}px 'Courier New', monospace`;
+            outCtx.textBaseline = 'top';
+
+            let monoColor = `rgb(${r}, ${g}, ${b})`;
+            if (isTimeHue && colorMode === 'mono') {
+                currentHue = (currentHue + (hueSpeed * 0.2)) % 360; 
+                monoColor = `hsl(${currentHue}, 100%, 50%)`;
+            }
+
+            if (colorMode === 'mono') {
+                outCtx.fillStyle = monoColor;
+            }
+
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const offset = (y * cols + x) * 4;
+                    const pr = pixels[offset];
+                    const pg = pixels[offset + 1];
+                    const pb = pixels[offset + 2];
+
+                    const brightness = (pr + pg + pb) / 3;
+                    const charIndex = Math.floor((brightness / 255) * (density.length - 1));
+                    const char = density[charIndex];
+
+                    if (colorMode === 'camera') {
+                        outCtx.fillStyle = `rgb(${pr}, ${pg}, ${pb})`;
+                    } else if (colorMode === 'duotone') {
+                        // Apply the custom Highlight (r,g,b) and Shadow (sr,sg,sb) variables
+                        outCtx.fillStyle = brightness > 120 ? `rgb(${r}, ${g}, ${b})` : `rgb(${sr}, ${sg}, ${sb})`;
+                    } else if (colorMode === 'random') {
+                        if (charIndex > 5) { 
+                            outCtx.fillStyle = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+                        }
+                    }
+
+                    const drawX = x * charWidth;
+                    const drawY = y * charHeight;
+                    outCtx.fillText(char, drawX, drawY);
+                }
+            }
+
+            requestAnimationFrame(renderAscii);
+        }
+    </script>
+</body>
+</html>
