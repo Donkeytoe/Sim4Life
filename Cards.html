@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cards</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f5f5f7; 
+            --text-color: #333;
+            --card-front-bg: #ffffff;
+            --toolbar-bg: rgba(0,0,0,0.05);
+            --overlay-bg: rgba(255, 255, 255, 0.4);
+            --paper-texture: radial-gradient(#d1d1d1 1px, transparent 1px), radial-gradient(#d1d1d1 1px, transparent 1px);
+            --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+            --font-ui: 'Montserrat', sans-serif;
+            --font-hand: 'Caveat', cursive;
+            --dynamic-text-color: #333; 
+            --card-outline: 1px solid #cccccc; 
+        }
+
+        body.dark-mode {
+            --bg-color: #1a1a1c;
+            --text-color: #e0e0e0;
+            --card-front-bg: #2c2c2e;
+            --toolbar-bg: rgba(255,255,255,0.1);
+            --overlay-bg: rgba(0, 0, 0, 0.6);
+            --paper-texture: radial-gradient(#333 1px, transparent 1px), radial-gradient(#333 1px, transparent 1px);
+            --dynamic-text-color: #e0e0e0;
+            --card-outline: 1px solid #555555; 
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: var(--font-ui); background-color: var(--bg-color); color: var(--text-color);
+            background-image: var(--paper-texture); background-size: 20px 20px;
+            background-position: 0 0, 10px 10px; height: 100vh; width: 100vw;
+            overflow: hidden; transition: background-color 0.3s, color 0.3s;
+        }
+
+        .hidden { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+
+        .card-face, .stacked-card-visual, .grid-card { border: var(--card-outline); }
+        
+        /* --- Trash Bin --- */
+        #trash-bin {
+            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%;
+            background: #ff4757; color: white; display: flex; justify-content: center; align-items: center;
+            font-size: 28px; box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4); z-index: 15; transition: transform 0.2s, background 0.2s;
+        }
+        #trash-bin.drag-over { transform: scale(1.2); background: #ff6b81; }
+
+        #times-up-banner {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: #ff4757; color: white; padding: 15px 40px; border-radius: 30px;
+            font-family: var(--font-hand); font-size: 36px; z-index: 100; box-shadow: 0 10px 25px rgba(255,71,87,0.4); transition: top 0.5s var(--ease-out-quint); text-align: center;
+        }
+        #times-up-banner.show { top: 40px; }
+
+        /* --- Splash Screen --- */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 50; background: var(--bg-color); transition: opacity 0.5s;
+        }
+        .title-container { text-align: center; cursor: pointer; transition: opacity 0.3s; }
+        #app-title { font-family: var(--font-hand); font-size: 80px; line-height: 1; }
+        #subtitle { font-family: var(--font-ui); font-size: 14px; color: #888; margin-top: 5px; letter-spacing: 1px; text-transform: lowercase; }
+        
+        /* --- Top Controls & Search --- */
+        #main-controls { position: fixed; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px; z-index: 10; }
+        .control-btn {
+            width: 45px; height: 45px; flex-shrink: 0; border-radius: 50%; background: var(--text-color); color: var(--bg-color);
+            display: flex; justify-content: center; align-items: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: none;
+        }
+
+        #searchBar {
+            flex-grow: 1; max-width: 400px; height: 45px; border-radius: 25px; border: none; padding: 0 20px; font-family: var(--font-ui); font-size: 16px;
+            background: var(--card-front-bg); color: var(--text-color); box-shadow: 0 4px 10px rgba(0,0,0,0.1); outline: none;
+        }
+
+        /* --- Workspace --- */
+        #workspace { position: relative; width: 100vw; height: 100vh; overflow: hidden; transition: opacity 0.3s;}
+        .deck-stack { position: absolute; width: 120px; height: 160px; cursor: grab; transform: translate(-50%, -50%); touch-action: none; }
+        .deck-stack:active { cursor: grabbing; }
+        .stacked-card-visual { position: absolute; width: 100%; height: 100%; border-radius: 12px; background: var(--card-front-bg); box-shadow: 0 4px 12px rgba(0,0,0,0.1); pointer-events: none; }
+
+        /* --- Grid View --- */
+        #grid-view {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            z-index: 20; padding: 100px 20px 20px; overflow-y: auto; transition: opacity 0.3s; display: flex; flex-direction: column; align-items: center;
+        }
+        #grid-title { font-family: var(--font-hand); font-size: 40px; margin-bottom: 30px; text-align: center;}
+        #grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px; width: 100%; max-width: 800px; }
+        .grid-card { position: relative; height: 180px; border-radius: 12px; padding: 15px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; transition: transform 0.2s; }
+        .grid-card:hover { transform: scale(1.05); }
+        .grid-card h4 { font-size: 16px; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+        .grid-card p { font-size: 12px; opacity: 0.8; overflow: hidden; flex-grow: 1; }
+        
+        .grid-delete-btn {
+            position: absolute; top: 10px; right: 10px; background: rgba(255,0,0,0.15); border: none; width: 28px; height: 28px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; transition: background 0.2s; font-size: 14px; z-index: 5;
+        }
+        .grid-delete-btn:hover { background: #ff4757; color: white; }
+
+        /* --- Editor --- */
+        #card-editor {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30; perspective: 1500px; transition: opacity 0.3s;
+        }
+        
+        #flashcard { width: 90%; height: 75%; max-height: 600px; margin-bottom: 40px; position: relative; transform-style: preserve-3d; transition: transform 0.5s var(--ease-out-quint); cursor: default; }
+        #flashcard.is-flipped { transform: rotateY(180deg); }
+
+        .card-face {
+            position: absolute; width: 100%; height: 100%; border-radius: 20px; padding: 60px 30px 40px 30px; 
+            backface-visibility: hidden; display: flex; flex-direction: column; background: var(--card-front-bg); box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .flip-btn {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: var(--toolbar-bg); border: none; width: 35px; height: 35px; border-radius: 50%;
+            cursor: pointer; color: var(--dynamic-text-color); display: flex; justify-content: center; align-items: center; font-size: 18px; transition: background 0.2s; z-index: 5;
+        }
+        .flip-btn:hover { background: rgba(0,0,0,0.1); }
+        
+        .card-title-input { font-family: var(--font-ui); font-weight: 600; font-size: 24px; border: none; background: transparent; color: var(--dynamic-text-color); outline: none; width: 100%; margin-bottom: 20px;}
+        .card-body-input { font-family: var(--font-ui); font-size: 16px; border: none; background: transparent; color: var(--dynamic-text-color); outline: none; flex-grow: 1; resize: none; line-height: 1.6; }
+        .category-input { font-family: var(--font-hand); font-size: 40px; border: none; background: transparent; color: var(--dynamic-text-color); border-bottom: 2px solid var(--toolbar-bg); width: 100%; text-align: center; outline: none;}
+        .card-title-input::placeholder, .card-body-input::placeholder, .category-input::placeholder { color: var(--dynamic-text-color); opacity: 0.5; }
+
+        /* --- Docks --- */
+        .card-toolbar { 
+            position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; align-items: center; 
+            gap: 8px; /* Tighter gap so buttons sit close to each other */
+            width: max-content; background: rgba(150, 150, 150, 0.2); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px 16px; border-radius: 40px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1); z-index: 10;
+        }
+        
+        .global-toolbar {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; align-items: center; gap: 12px; width: max-content;
+            background: rgba(150, 150, 150, 0.2); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px 16px; border-radius: 40px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); z-index: 40;
+        }
+
+        .icon-btn { position: relative; background: rgba(0,0,0,0.05); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; color: var(--dynamic-text-color); display: flex; justify-content: center; align-items: center; transition: transform 0.2s;}
+        .icon-btn:hover { transform: scale(1.1); background: rgba(0,0,0,0.1); }
+        .icon-btn.recording { background: #ff4757; color: white; animation: pulse 1s infinite; border: none; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        .global-toolbar .icon-btn { color: var(--text-color); background: rgba(255,255,255,0.5); }
+        body.dark-mode .global-toolbar .icon-btn { background: rgba(0,0,0,0.5); }
+
+        /* Attachments */
+        #attachments-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 80px; max-height: 25%; overflow-y: auto; }
+        .attachment-pill { background: var(--toolbar-bg); padding: 6px 12px; border-radius: 15px; font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--dynamic-text-color); border: var(--card-outline); }
+        .attachment-pill img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; }
+        .attachment-pill span { max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .action-btn { border: none; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 12px; transition: background 0.2s; }
+        .dl-att { background: rgba(0, 150, 255, 0.15); color: #007aff; }
+        .del-att { background: rgba(255,0,0,0.15); color: red; }
+
+        .card-back { transform: rotateY(180deg); justify-content: flex-start; align-items: center; text-align: center; }
+        .deadline-input { font-family: var(--font-ui); font-size: 14px; border: none; background: rgba(0,0,0,0.05); color: var(--dynamic-text-color); padding: 8px 12px; border-radius: 10px; margin-top: 10px; outline: none; }
+
+    </style>
+</head>
+<body>
+
+    <div id="times-up-banner" class="hidden">TIMES UP!</div>
+
+    <div id="splash-screen">
+        <div class="title-container" onclick="startApp()">
+            <div id="app-title">Cards</div>
+            <div id="subtitle">powered by donkey</div>
+        </div>
+    </div>
+
+    <div id="main-controls" class="hidden">
+        <button class="control-btn" onclick="toggleDarkMode()" title="Toggle Theme">◑</button>
+        <input type="text" id="searchBar" placeholder="Search your cards..." oninput="handleSearch(event)">
+        <button class="control-btn" onclick="openEditor()" title="New Card">+</button>
+    </div>
+
+    <div id="workspace"></div>
+
+    <div id="trash-bin" class="hidden" title="Drag a stack here to delete">🗑️</div>
+
+    <div id="grid-view" class="hidden" onclick="closeGrid(event)">
+        <div id="grid-title">Category</div>
+        <div id="grid-container" onclick="event.stopPropagation()"></div>
+    </div>
+
+    <input type="file" id="fileInput" style="display: none;" accept="image/*" onchange="handleFileUpload(event)">
+
+    <div id="card-editor" class="hidden" onclick="handleOutsideClick(event)">
+        
+        <div id="flashcard" onclick="event.stopPropagation()"> 
+            
+            <div class="card-face card-front" id="front-face">
+                <button class="flip-btn" onclick="toggleFlip()" title="Flip Card">⤾</button>
+                <input type="text" id="noteTitle" class="card-title-input" placeholder="Title">
+                <textarea id="noteBody" class="card-body-input" placeholder="Start typing..."></textarea>
+                
+                <div id="attachments-container"></div>
+
+                <div class="card-toolbar">
+                    <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="Attach File">📎</button>
+                    <button id="micBtn" class="icon-btn" onclick="toggleAudioRecording()" title="Record Audio">🎤</button>
+                </div>
+            </div>
+
+            <div class="card-face card-back" id="back-face">
+                <button class="flip-btn" onclick="toggleFlip()" title="Flip Card">⤾</button>
+                
+                <div style="width:100%; margin-top: 10px;">
+                    <label style="font-size: 14px; display:block; margin-bottom:5px;">Category</label>
+                    <input type="text" id="noteCategory" class="category-input" placeholder="e.g., Ideas">
+                </div>
+
+                <div style="width:100%; margin-top: 30px;">
+                    <label style="font-size: 14px; display:block; color: #888;">Stack Countdown (Optional)</label>
+                    <input type="datetime-local" id="categoryDeadline" class="deadline-input">
+                </div>
+
+                <div id="instruction-text" style="font-size: 12px; position: absolute; bottom: 40px; width: 100%; opacity: 0.5;">Tap dark space outside to close & save.</div>
+            </div>
+
+        </div>
+
+        <div class="global-toolbar" onclick="event.stopPropagation()">
+            <div class="icon-btn" style="position:relative; overflow:hidden;" title="Pick Color">
+                🎨
+                <input type="color" id="colorPickerInput" value="#ffffff" style="position:absolute; top:-10px; left:-10px; width:200%; height:200%; opacity:0; cursor:pointer; z-index:10;">
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'cards_app_spatial';
+        const POS_KEY = 'cards_app_positions';
+        const DEADLINES_KEY = 'cards_app_deadlines';
+        
+        let notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let stackPositions = JSON.parse(localStorage.getItem(POS_KEY)) || {};
+        let categoryDeadlines = JSON.parse(localStorage.getItem(DEADLINES_KEY)) || {};
+        
+        let currentNoteId = null;
+        let currentAttachments = [];
+        let draggedStack = null;
+
+        function getNegativeColor(hex) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            const r = (255 - parseInt(hex.substring(0, 2), 16)).toString(16).padStart(2, '0');
+            const g = (255 - parseInt(hex.substring(2, 4), 16)).toString(16).padStart(2, '0');
+            const b = (255 - parseInt(hex.substring(4, 6), 16)).toString(16).padStart(2, '0');
+            return `#${r}${g}${b}`;
+        }
+
+        if(localStorage.getItem('cards_dark_mode') === 'true') { document.body.classList.add('dark-mode'); }
+        
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('cards_dark_mode', document.body.classList.contains('dark-mode'));
+            if(document.getElementById('card-editor').classList.contains('hidden') && document.getElementById('grid-view').classList.contains('hidden')) {
+                renderWorkspace();
+            }
+        }
+
+        function startApp() {
+            const titleContainer = document.querySelector('.title-container');
+            titleContainer.style.opacity = '0';
+            
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('main-controls').classList.remove('hidden');
+                document.getElementById('trash-bin').classList.remove('hidden');
+                
+                if (notes.length > 0) renderWorkspace();
+                else openEditor();
+            }, 300);
+        }
+
+        function tsToDatetimeLocal(ts) {
+            if(!ts) return '';
+            const d = new Date(ts);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            return d.toISOString().slice(0,16);
+        }
+
+        function handleSearch(e) {
+            const query = e.target.value.toLowerCase().trim();
+            const workspace = document.getElementById('workspace');
+            
+            if (!query) {
+                document.getElementById('grid-view').classList.add('hidden');
+                workspace.style.opacity = '1';
+                workspace.style.pointerEvents = 'auto';
+                return;
+            }
+            
+            const results = notes.filter(n => 
+                (n.title && n.title.toLowerCase().includes(query)) || 
+                (n.body && n.body.toLowerCase().includes(query)) ||
+                (n.category && n.category.toLowerCase().includes(query))
+            );
+            
+            workspace.style.opacity = '0';
+            workspace.style.pointerEvents = 'none';
+            renderGridView(results, `Search: "${query}"`);
+        }
+
+        function openEditor(noteId = null) {
+            if (noteId) {
+                const note = notes.find(n => n.id === noteId);
+                currentNoteId = note.id;
+                document.getElementById('noteTitle').value = note.title;
+                document.getElementById('noteBody').value = note.body;
+                document.getElementById('noteCategory').value = note.category;
+                document.getElementById('colorPickerInput').value = note.color;
+                
+                if(note.category && categoryDeadlines[note.category]) {
+                    document.getElementById('categoryDeadline').value = tsToDatetimeLocal(categoryDeadlines[note.category].timestamp);
+                } else {
+                    document.getElementById('categoryDeadline').value = '';
+                }
+
+                currentAttachments = note.attachments || [];
+                updateCardColor(note.color);
+            } else {
+                currentNoteId = Date.now();
+                document.getElementById('noteTitle').value = '';
+                document.getElementById('noteBody').value = '';
+                document.getElementById('noteCategory').value = '';
+                document.getElementById('categoryDeadline').value = '';
+                
+                const defaultColor = document.body.classList.contains('dark-mode') ? '#2c2c2e' : '#ffffff';
+                document.getElementById('colorPickerInput').value = defaultColor;
+                currentAttachments = [];
+                updateCardColor(defaultColor);
+            }
+
+            renderAttachments();
+            document.getElementById('flashcard').classList.remove('is-flipped');
+            document.getElementById('card-editor').classList.remove('hidden');
+            document.getElementById('grid-view').classList.add('hidden');
+        }
+
+        function toggleFlip() {
+            document.getElementById('flashcard').classList.toggle('is-flipped');
+            if(document.getElementById('flashcard').classList.contains('is-flipped')) {
+                document.getElementById('noteCategory').focus();
+            }
+        }
+
+        function handleOutsideClick(e) { closeEditor(); }
+
+        function closeEditor() {
+            autoSave();
+            document.getElementById('card-editor').classList.add('hidden');
+            
+            const searchVal = document.getElementById('searchBar').value.trim();
+            if(searchVal) {
+                handleSearch({target: {value: searchVal}});
+            } else {
+                document.getElementById('workspace').style.opacity = '1';
+                document.getElementById('workspace').style.pointerEvents = 'auto';
+                renderWorkspace();
+            }
+        }
+
+        function updateCardColor(hex) {
+            document.getElementById('front-face').style.backgroundColor = hex;
+            document.getElementById('back-face').style.backgroundColor = hex;
+            const negativeColor = getNegativeColor(hex);
+            document.documentElement.style.setProperty('--dynamic-text-color', negativeColor);
+            document.getElementById('instruction-text').style.color = negativeColor;
+        }
+
+        document.getElementById('colorPickerInput').addEventListener('input', e => {
+            updateCardColor(e.target.value); autoSave();
+        });
+
+        function autoSave() {
+            const title = document.getElementById('noteTitle').value.trim();
+            const body = document.getElementById('noteBody').value.trim();
+            let category = document.getElementById('noteCategory').value.trim() || "Uncategorized";
+            const deadlineInput = document.getElementById('categoryDeadline').value;
+
+            if (!title && !body && currentAttachments.length === 0) return;
+
+            const noteData = {
+                id: currentNoteId, title, body, category,
+                color: document.getElementById('colorPickerInput').value,
+                timestamp: Date.now(), attachments: currentAttachments
+            };
+
+            const index = notes.findIndex(n => n.id === currentNoteId);
+            if (index > -1) notes[index] = noteData; else notes.push(noteData);
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+
+            if (!stackPositions[category]) {
+                stackPositions[category] = { x: Math.random() * (window.innerWidth - 200) + 100, y: Math.random() * (window.innerHeight - 300) + 150 };
+                localStorage.setItem(POS_KEY, JSON.stringify(stackPositions));
+            }
+
+            if (deadlineInput) {
+                const deadlineTs = new Date(deadlineInput).getTime();
+                if(!categoryDeadlines[category] || categoryDeadlines[category].timestamp !== deadlineTs) {
+                    categoryDeadlines[category] = { timestamp: deadlineTs, notified: false };
+                    localStorage.setItem(DEADLINES_KEY, JSON.stringify(categoryDeadlines));
+                }
+            } else if (categoryDeadlines[category]) {
+                delete categoryDeadlines[category];
+                localStorage.setItem(DEADLINES_KEY, JSON.stringify(categoryDeadlines));
+            }
+        }
+
+        ['noteTitle', 'noteBody', 'noteCategory', 'categoryDeadline'].forEach(id => {
+            document.getElementById(id).addEventListener('input', autoSave);
+        });
+
+        setInterval(() => {
+            const now = Date.now();
+            let madeChanges = false;
+            for (const [cat, data] of Object.entries(categoryDeadlines)) {
+                if (data.timestamp && now >= data.timestamp && !data.notified) {
+                    data.notified = true; madeChanges = true; triggerTimesUp(cat);
+                }
+            }
+            if (madeChanges) localStorage.setItem(DEADLINES_KEY, JSON.stringify(categoryDeadlines));
+        }, 1000); 
+
+        function triggerTimesUp(category) {
+            const banner = document.getElementById('times-up-banner');
+            banner.innerText = `TIMES UP: ${category.toUpperCase()}!`;
+            document.getElementById('card-editor').classList.add('hidden');
+            document.getElementById('searchBar').value = '';
+            
+            banner.classList.remove('hidden');
+            setTimeout(() => banner.classList.add('show'), 10);
+            
+            const catNotes = notes.filter(n => n.category === category);
+            renderGridView(catNotes, category);
+            
+            setTimeout(() => {
+                banner.classList.remove('show');
+                setTimeout(() => banner.classList.add('hidden'), 500);
+            }, 5000);
+        }
+
+        function renderWorkspace() {
+            const workspace = document.getElementById('workspace');
+            workspace.innerHTML = '';
+            const categories = [...new Set(notes.map(n => n.category))];
+
+            categories.forEach(cat => {
+                const catNotes = notes.filter(n => n.category === cat);
+                if (catNotes.length === 0) return;
+
+                const stack = document.createElement('div');
+                stack.className = 'deck-stack';
+                let pos = stackPositions[cat] || { x: window.innerWidth/2, y: window.innerHeight/2 };
+                stack.style.left = `${pos.x}px`; stack.style.top = `${pos.y}px`;
+                stack.dataset.category = cat;
+
+                const visualCount = Math.min(catNotes.length, 4);
+                
+                for(let i = visualCount - 1; i >= 0; i--) {
+                    const cardVis = document.createElement('div');
+                    cardVis.className = 'stacked-card-visual';
+                    cardVis.style.backgroundColor = catNotes[i].color;
+                    
+                    const offset = i * 6;
+                    const rot = i % 2 === 0 ? i * 1.5 : -i * 1.5;
+                    cardVis.style.transform = `translateY(${offset}px) rotate(${rot}deg)`;
+                    
+                    if (i === 0) {
+                        cardVis.style.display = 'flex';
+                        cardVis.style.flexDirection = 'column';
+                        cardVis.style.alignItems = 'center';
+                        cardVis.style.justifyContent = 'center';
+                        cardVis.style.textAlign = 'center';
+                        cardVis.style.padding = '10px';
+                        cardVis.style.fontFamily = 'var(--font-hand)';
+                        cardVis.style.color = getNegativeColor(catNotes[i].color);
+                        
+                        let fontSize = 32;
+                        if (cat.length > 6) fontSize = 26;
+                        if (cat.length > 10) fontSize = 20;
+                        if (cat.length > 16) fontSize = 16;
+                        if (cat.length > 22) fontSize = 12;
+                        
+                        cardVis.style.fontSize = `${fontSize}px`;
+                        cardVis.style.lineHeight = '1.1';
+                        cardVis.style.wordWrap = 'break-word';
+
+                        let timerIcon = (categoryDeadlines[cat] && !categoryDeadlines[cat].notified) ? '<span style="font-size: 14px; margin-top:5px;">⏳</span>' : '';
+                        cardVis.innerHTML = `<span>${cat}</span>${timerIcon}`;
+                    }
+                    
+                    stack.appendChild(cardVis);
+                }
+
+                stack.addEventListener('pointerdown', startDrag);
+                
+                stack.addEventListener('click', (e) => {
+                    if (stack.dataset.preventClick === "true") {
+                        e.preventDefault(); e.stopPropagation();
+                        stack.dataset.preventClick = "false"; return;
+                    }
+                    renderGridView(catNotes, cat);
+                });
+
+                workspace.appendChild(stack);
+            });
+        }
+
+        let dragStartX = 0, dragStartY = 0;
+        let isActuallyDragging = false;
+        let dragStartLeft = 0, dragStartTop = 0;
+
+        function startDrag(e) {
+            draggedStack = e.currentTarget; 
+            isActuallyDragging = false;
+            dragStartX = e.clientX; dragStartY = e.clientY;
+            dragStartLeft = parseFloat(draggedStack.style.left) || 0;
+            dragStartTop = parseFloat(draggedStack.style.top) || 0;
+
+            document.addEventListener('pointermove', onDrag);
+            document.addEventListener('pointerup', endDrag);
+            document.addEventListener('pointercancel', endDrag);
+        }
+
+        function onDrag(e) {
+            if (!draggedStack) return;
+            if (!isActuallyDragging) {
+                const dx = e.clientX - dragStartX;
+                const dy = e.clientY - dragStartY;
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                    isActuallyDragging = true;
+                }
+            }
+
+            if (isActuallyDragging) {
+                let newX = Math.max(60, Math.min(window.innerWidth - 60, dragStartLeft + (e.clientX - dragStartX)));
+                let newY = Math.max(80, Math.min(window.innerHeight - 80, dragStartTop + (e.clientY - dragStartY)));
+                draggedStack.style.left = `${newX}px`; draggedStack.style.top = `${newY}px`;
+                
+                const trash = document.getElementById('trash-bin');
+                const trashRect = trash.getBoundingClientRect();
+                if (e.clientX > trashRect.left && e.clientX < trashRect.right && 
+                    e.clientY > trashRect.top && e.clientY < trashRect.bottom) {
+                    trash.classList.add('drag-over');
+                } else {
+                    trash.classList.remove('drag-over');
+                }
+            }
+        }
+
+        function endDrag(e) {
+            if (!draggedStack) return;
+            document.removeEventListener('pointermove', onDrag); 
+            document.removeEventListener('pointerup', endDrag);
+            document.removeEventListener('pointercancel', endDrag);
+
+            const trash = document.getElementById('trash-bin');
+            
+            if (isActuallyDragging) {
+                draggedStack.dataset.preventClick = "true";
+                const cat = draggedStack.dataset.category;
+                
+                if (trash.classList.contains('drag-over')) {
+                    trash.classList.remove('drag-over');
+                    if(confirm(`Permanently delete the entire "${cat}" stack?`)) {
+                        notes = notes.filter(n => n.category !== cat);
+                        delete stackPositions[cat];
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+                        localStorage.setItem(POS_KEY, JSON.stringify(stackPositions));
+                        renderWorkspace();
+                        draggedStack = null;
+                        isActuallyDragging = false;
+                        return;
+                    }
+                }
+                
+                stackPositions[cat] = { x: parseFloat(draggedStack.style.left), y: parseFloat(draggedStack.style.top) };
+                localStorage.setItem(POS_KEY, JSON.stringify(stackPositions));
+            } else {
+                draggedStack.dataset.preventClick = "false";
+            }
+            
+            trash.classList.remove('drag-over');
+            draggedStack = null;
+            isActuallyDragging = false;
+        }
+
+        function deleteCard(id, e) {
+            e.stopPropagation();
+            if (confirm("Permanently delete this note?")) {
+                notes = notes.filter(n => n.id !== id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+                
+                const currentGridTitle = document.getElementById('grid-title').innerText;
+                
+                if (currentGridTitle.startsWith("Search:")) {
+                    handleSearch({target: {value: document.getElementById('searchBar').value}});
+                } else {
+                    const remainingNotes = notes.filter(n => n.category === currentGridTitle);
+                    if (remainingNotes.length === 0) closeGrid({target: {id: 'grid-view'}});
+                    else renderGridView(remainingNotes, currentGridTitle);
+                }
+                renderWorkspace();
+            }
+        }
+
+        function renderGridView(notesArray, titleString) {
+            const gridView = document.getElementById('grid-view');
+            const container = document.getElementById('grid-container');
+            document.getElementById('grid-title').innerText = titleString;
+            container.innerHTML = '';
+
+            if (notesArray.length === 0) {
+                container.innerHTML = `<p style="color: #888; text-align:center; width: 100%; grid-column: 1 / -1;">No cards found.</p>`;
+            } else {
+                notesArray.sort((a,b) => b.timestamp - a.timestamp).forEach(note => {
+                    const miniCard = document.createElement('div');
+                    miniCard.className = 'grid-card';
+                    miniCard.style.backgroundColor = note.color;
+                    
+                    const negColor = getNegativeColor(note.color);
+                    miniCard.style.color = negColor;
+
+                    miniCard.innerHTML = `
+                        <button class="grid-delete-btn" onclick="deleteCard(${note.id}, event)" title="Delete Note">🗑️</button>
+                        <h4>${note.title || 'Untitled'}</h4>
+                        <p>${note.body}</p>
+                        <div style="font-size:10px; margin-top:5px; opacity: 0.7;">
+                            ${note.category} • ${note.attachments ? note.attachments.length + ' attachments' : '0 attachments'}
+                        </div>
+                    `;
+                    miniCard.onclick = (e) => { 
+                        e.stopPropagation(); 
+                        openEditor(note.id); 
+                    };
+                    container.appendChild(miniCard);
+                });
+            }
+            gridView.classList.remove('hidden');
+        }
+
+        function closeGrid(e) {
+            if(e.target.id === 'grid-view' || e.target.id === 'grid-title') { 
+                document.getElementById('grid-view').classList.add('hidden'); 
+                const searchInput = document.getElementById('searchBar');
+                searchInput.value = '';
+                const workspace = document.getElementById('workspace');
+                workspace.style.opacity = '1';
+                workspace.style.pointerEvents = 'auto';
+            }
+        }
+
+        function renderAttachments() {
+            const container = document.getElementById('attachments-container');
+            container.innerHTML = '';
+            currentAttachments.forEach(att => {
+                const pill = document.createElement('div');
+                pill.className = 'attachment-pill';
+                const icon = att.type === 'image' ? `<img src="${att.data}">` : `🎤`;
+                pill.innerHTML = `
+                    ${icon}<span>${att.name}</span>
+                    <div style="display:flex; gap: 4px; margin-left:auto;">
+                        <button class="action-btn dl-att" onclick="downloadAtt('${att.id}', event)" title="Download">⬇</button>
+                        <button class="action-btn del-att" onclick="removeAtt(${att.id}, event)" title="Delete">✖</button>
+                    </div>
+                `;
+                container.appendChild(pill);
+            });
+        }
+
+        function removeAtt(id, e) {
+            e.stopPropagation();
+            currentAttachments = currentAttachments.filter(a => a.id !== id);
+            renderAttachments(); autoSave();
+        }
+
+        function downloadAtt(id, e) {
+            e.stopPropagation();
+            const att = currentAttachments.find(a => a.id == id);
+            if (!att) return;
+            const a = document.createElement('a');
+            a.href = att.data; a.download = att.name;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const saveName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const scale = 400 / img.width;
+                    canvas.width = 400; canvas.height = img.height * scale;
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    currentAttachments.push({ id: Date.now(), type: 'image', name: saveName, data: canvas.toDataURL('image/jpeg', 0.5) });
+                    renderAttachments(); autoSave();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        let isRecording = false; let mediaRecorder; let audioChunks = [];
+        async function toggleAudioRecording() {
+            const btn = document.getElementById('micBtn');
+            if (isRecording) {
+                mediaRecorder.stop(); btn.classList.remove('recording'); isRecording = false;
+            } else {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 12000 });
+                    audioChunks = [];
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
+                        reader.onloadend = () => {
+                            const audioName = `Voice_Note_${currentAttachments.length + 1}.webm`;
+                            currentAttachments.push({ id: Date.now(), type: 'audio', name: audioName, data: reader.result });
+                            renderAttachments(); autoSave();
+                        };
+                    };
+                    mediaRecorder.start(); btn.classList.add('recording'); isRecording = true;
+                } catch (err) { alert("Microphone access denied."); }
+            }
+        }
+    </script>
+</body>
+</html>
