@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space</title>
+    <style>
+        :root {
+            --bg: #0d0f11;
+            --accent: rgba(59, 130, 246, 0.5);
+            --danger: rgba(239, 68, 68, 0.6);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --text: #ffffff;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass: rgba(255, 255, 255, 0.08);
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Splash Screen */
+        #splash {
+            position: fixed; inset: 0; background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 2000; cursor: pointer; transition: opacity 0.6s ease;
+        }
+        #splash h1 { font-size: 4rem; font-weight: 200; letter-spacing: 12px; text-transform: uppercase; margin: 0; }
+        .sub { font-size: 0.7rem; color: #444; margin-top: 15px; letter-spacing: 2px; }
+        .handle { font-size: 0.6rem; color: #222; margin-top: 5px; }
+
+        /* UI Controls */
+        .ui-fab {
+            position: fixed; width: 50px; height: 50px; border-radius: 15px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 100; backdrop-filter: blur(15px);
+            border: 1px solid var(--border); background: var(--glass);
+        }
+        .top-left { top: 20px; left: 20px; }
+        .top-right { top: 20px; right: 20px; }
+        .bottom-right { bottom: 20px; right: 20px; }
+
+        /* Settings Panel */
+        #settings-panel {
+            position: fixed; top: 80px; right: 20px; width: 220px;
+            background: rgba(15, 15, 15, 0.95); backdrop-filter: blur(25px);
+            border: 1px solid var(--border); border-radius: 20px;
+            padding: 20px; z-index: 500; display: none;
+        }
+        .setting-item { margin-bottom: 18px; }
+        .setting-item label { display: block; font-size: 10px; color: #666; margin-bottom: 8px; text-transform: uppercase; }
+        input[type="color"], select, button { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 10px; box-sizing: border-box; cursor: pointer; }
+        button { background: var(--accent); border: none; font-weight: bold; margin-top: 5px; }
+
+        /* Workspace */
+        #workspace { 
+            width: 100vw; height: 100vh; position: relative; 
+            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
+            background-size: 40px 40px;
+        }
+        
+        .app-item {
+            position: absolute; width: 85px;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 10px; border-radius: 15px;
+            user-select: none;
+        }
+        .app-icon {
+            width: 60px; height: 60px; border-radius: 16px;
+            background: #151719; object-fit: cover;
+            border: 1px solid var(--border); margin-bottom: 10px;
+            pointer-events: none;
+        }
+        .app-label { font-size: 11px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+
+        .plus-icon { position: relative; width: 16px; height: 16px; }
+        .plus-icon::before, .plus-icon::after { content: ''; position: absolute; background: white; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .plus-icon::before { width: 100%; height: 2px; }
+        .plus-icon::after { width: 2px; height: 100%; }
+        .drag-over { background: var(--danger) !important; border-color: white !important; transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+    <div id="splash" onclick="this.style.opacity='0'; setTimeout(()=>this.remove(), 600)">
+        <h1>Space</h1>
+        <div class="sub">powered by Donkey</div>
+        <div class="handle">@donkey.toe</div>
+    </div>
+
+    <div class="ui-fab top-left" onclick="document.getElementById('icon-input').click()"><div class="plus-icon"></div></div>
+    
+    <div class="ui-fab top-right" onclick="toggleSettings()">⚙️</div>
+    <div id="trash-can" class="ui-fab bottom-right">🗑️</div>
+
+    <div id="settings-panel">
+        <div class="setting-item"><label>Background</label><input type="color" id="bg-pick" value="#0d0f11"></div>
+        <div class="setting-item"><label>Text Color</label><input type="color" id="tx-pick" value="#ffffff"></div>
+        <div class="setting-item">
+            <label>Font Style</label>
+            <select id="font-pick">
+                <option value="'Inter', sans-serif">Inter</option>
+                <option value="'Courier New', monospace">Mono</option>
+                <option value="'Georgia', serif">Serif</option>
+            </select>
+        </div>
+        <div class="setting-item"><button onclick="toggleFullScreen()">Fullscreen</button></div>
+    </div>
+
+    <div id="workspace"></div>
+
+    <input type="file" id="icon-input" accept="image/*" style="display:none">
+
+    <script>
+        const workspace = document.getElementById('workspace');
+        const trashCan = document.getElementById('trash-can');
+        const settingsPanel = document.getElementById('settings-panel');
+        let activeItem = null;
+        let offset = { x: 0, y: 0 };
+        let startPos = { x: 0, y: 0 };
+
+        function toggleSettings() {
+            settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        document.getElementById('bg-pick').oninput = (e) => document.body.style.backgroundColor = e.target.value;
+        document.getElementById('tx-pick').oninput = (e) => document.body.style.color = e.target.value;
+        document.getElementById('font-pick').onchange = (e) => document.body.style.fontFamily = e.target.value;
+
+        // The Fix: Image first, URL second, Title third.
+        document.getElementById('icon-input').onchange = function() {
+            if (!this.files[0]) return;
+
+            // Image is selected, now ask for URL and Name
+            const link = prompt("Paste your URL (e.g., https://google.com):", "https://");
+            
+            // If user hits cancel on the URL prompt, stop the process
+            if (!link || link === "https://") {
+                this.value = ''; // Reset input
+                return; 
+            }
+
+            const name = prompt("Enter a title for this link:", "New Link") || "Link";
+
+            // Process the image
+            const reader = new FileReader();
+            reader.readAsDataURL(this.files[0]);
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.src = ev.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 128; canvas.height = 128;
+                    canvas.getContext('2d').drawImage(img, 0, 0, 128, 128);
+                    createApp(link, name, canvas.toDataURL('image/png'));
+                };
+            };
+            
+            // Reset the file input so you can pick the same image again if you want
+            this.value = ''; 
+        };
+
+        function createApp(link, name, iconData) {
+            const item = document.createElement('div');
+            item.className = 'app-item';
+            
+            // Spawn in the middle of the screen
+            item.style.left = '50%';
+            item.style.top = '50%';
+            item.style.transform = 'translate(-50%, -50%)';
+
+            item.innerHTML = `<img src="${iconData}" class="app-icon"><span class="app-label">${name}</span>`;
+
+            item.onpointerdown = (e) => {
+                activeItem = item;
+                item.setPointerCapture(e.pointerId);
+                item.style.transform = 'none'; // Remove centering transform for dragging
+                startPos = { x: e.clientX, y: e.clientY };
+                const r = item.getBoundingClientRect();
+                offset = { x: e.clientX - r.left, y: e.clientY - r.top };
+            };
+
+            item.onpointermove = (e) => {
+                if (!activeItem) return;
+                item.style.left = `${e.clientX - offset.x}px`;
+                item.style.top = `${e.clientY - offset.y}px`;
+                const tr = trashCan.getBoundingClientRect();
+                const isOver = e.clientX > tr.left && e.clientX < tr.right && e.clientY > tr.top && e.clientY < tr.bottom;
+                trashCan.classList.toggle('drag-over', isOver);
+            };
+
+            item.onpointerup = (e) => {
+                if (!activeItem) return;
+                const dist = Math.sqrt(Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2));
+                const tr = trashCan.getBoundingClientRect();
+                const isOverTrash = e.clientX > tr.left && e.clientX < tr.right && e.clientY > tr.top && e.clientY < tr.bottom;
+
+                if (isOverTrash) {
+                    item.remove();
+                } else if (dist < 5) { 
+                    window.open(link, '_blank');
+                }
+                trashCan.classList.remove('drag-over');
+                activeItem = null;
+            };
+
+            workspace.appendChild(item);
+        }
+    </script>
+</body>
+</html>
