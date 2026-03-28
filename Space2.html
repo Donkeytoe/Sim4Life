@@ -23,6 +23,7 @@
             font-family: 'Inter', -apple-system, sans-serif;
             overflow: hidden;
             touch-action: none;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Splash Screen */
@@ -95,7 +96,6 @@
     </div>
 
     <div class="ui-fab top-left" onclick="document.getElementById('icon-input').click()"><div class="plus-icon"></div></div>
-    
     <div class="ui-fab top-right" onclick="toggleSettings()">⚙️</div>
     <div id="trash-can" class="ui-fab bottom-right">🗑️</div>
 
@@ -114,7 +114,6 @@
     </div>
 
     <div id="workspace"></div>
-
     <input type="file" id="icon-input" accept="image/*" style="display:none">
 
     <script>
@@ -125,38 +124,73 @@
         let offset = { x: 0, y: 0 };
         let startPos = { x: 0, y: 0 };
 
-        function toggleSettings() {
-            settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+        // 1. Storage Functions
+        function saveWorkspace() {
+            const apps = [];
+            document.querySelectorAll('.app-item').forEach(item => {
+                apps.push({
+                    url: item.dataset.url,
+                    name: item.dataset.name,
+                    icon: item.dataset.icon,
+                    left: item.style.left,
+                    top: item.style.top,
+                    transform: item.style.transform
+                });
+            });
+            localStorage.setItem('donkey_space_apps', JSON.stringify(apps));
         }
 
-        function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
-            } else {
-                document.exitFullscreen();
+        function saveSettings() {
+            const settings = {
+                bg: document.getElementById('bg-pick').value,
+                tx: document.getElementById('tx-pick').value,
+                font: document.getElementById('font-pick').value
+            };
+            localStorage.setItem('donkey_space_settings', JSON.stringify(settings));
+        }
+
+        function loadWorkspace() {
+            // Load Settings
+            const savedSettings = JSON.parse(localStorage.getItem('donkey_space_settings'));
+            if (savedSettings) {
+                document.body.style.backgroundColor = savedSettings.bg;
+                document.body.style.color = savedSettings.tx;
+                document.body.style.fontFamily = savedSettings.font;
+                
+                document.getElementById('bg-pick').value = savedSettings.bg;
+                document.getElementById('tx-pick').value = savedSettings.tx;
+                document.getElementById('font-pick').value = savedSettings.font;
             }
+
+            // Load Apps
+            const savedApps = JSON.parse(localStorage.getItem('donkey_space_apps') || '[]');
+            savedApps.forEach(app => {
+                createApp(app.url, app.name, app.icon, app.left, app.top, app.transform);
+            });
         }
 
-        document.getElementById('bg-pick').oninput = (e) => document.body.style.backgroundColor = e.target.value;
-        document.getElementById('tx-pick').oninput = (e) => document.body.style.color = e.target.value;
-        document.getElementById('font-pick').onchange = (e) => document.body.style.fontFamily = e.target.value;
+        // Initialize on load
+        window.onload = loadWorkspace;
 
-        // The Fix: Image first, URL second, Title third.
+        // UI Handlers
+        function toggleSettings() { settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block'; }
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+            else document.exitFullscreen();
+        }
+
+        // Live Settings Changes
+        document.getElementById('bg-pick').oninput = (e) => { document.body.style.backgroundColor = e.target.value; saveSettings(); };
+        document.getElementById('tx-pick').oninput = (e) => { document.body.style.color = e.target.value; saveSettings(); };
+        document.getElementById('font-pick').onchange = (e) => { document.body.style.fontFamily = e.target.value; saveSettings(); };
+
+        // Creation Flow
         document.getElementById('icon-input').onchange = function() {
             if (!this.files[0]) return;
-
-            // Image is selected, now ask for URL and Name
             const link = prompt("Paste your URL (e.g., https://google.com):", "https://");
-            
-            // If user hits cancel on the URL prompt, stop the process
-            if (!link || link === "https://") {
-                this.value = ''; // Reset input
-                return; 
-            }
-
+            if (!link || link === "https://") { this.value = ''; return; }
             const name = prompt("Enter a title for this link:", "New Link") || "Link";
 
-            // Process the image
             const reader = new FileReader();
             reader.readAsDataURL(this.files[0]);
             reader.onload = (ev) => {
@@ -166,29 +200,33 @@
                     const canvas = document.createElement('canvas');
                     canvas.width = 128; canvas.height = 128;
                     canvas.getContext('2d').drawImage(img, 0, 0, 128, 128);
-                    createApp(link, name, canvas.toDataURL('image/png'));
+                    
+                    // Spawn newly created apps in the center
+                    createApp(link, name, canvas.toDataURL('image/png'), '50%', '50%', 'translate(-50%, -50%)');
                 };
             };
-            
-            // Reset the file input so you can pick the same image again if you want
             this.value = ''; 
         };
 
-        function createApp(link, name, iconData) {
+        function createApp(link, name, iconData, leftPos = '50%', topPos = '50%', transformStyle = 'translate(-50%, -50%)') {
             const item = document.createElement('div');
             item.className = 'app-item';
             
-            // Spawn in the middle of the screen
-            item.style.left = '50%';
-            item.style.top = '50%';
-            item.style.transform = 'translate(-50%, -50%)';
+            // Store data inside the HTML element so it can be saved later
+            item.dataset.url = link;
+            item.dataset.name = name;
+            item.dataset.icon = iconData;
+
+            item.style.left = leftPos;
+            item.style.top = topPos;
+            item.style.transform = transformStyle;
 
             item.innerHTML = `<img src="${iconData}" class="app-icon"><span class="app-label">${name}</span>`;
 
             item.onpointerdown = (e) => {
                 activeItem = item;
                 item.setPointerCapture(e.pointerId);
-                item.style.transform = 'none'; // Remove centering transform for dragging
+                item.style.transform = 'none'; // Snap to absolute positioning on touch
                 startPos = { x: e.clientX, y: e.clientY };
                 const r = item.getBoundingClientRect();
                 offset = { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -199,26 +237,28 @@
                 item.style.left = `${e.clientX - offset.x}px`;
                 item.style.top = `${e.clientY - offset.y}px`;
                 const tr = trashCan.getBoundingClientRect();
-                const isOver = e.clientX > tr.left && e.clientX < tr.right && e.clientY > tr.top && e.clientY < tr.bottom;
-                trashCan.classList.toggle('drag-over', isOver);
+                trashCan.classList.toggle('drag-over', e.clientX > tr.left && e.clientX < tr.right && e.clientY > tr.top && e.clientY < tr.bottom);
             };
 
             item.onpointerup = (e) => {
                 if (!activeItem) return;
                 const dist = Math.sqrt(Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2));
                 const tr = trashCan.getBoundingClientRect();
-                const isOverTrash = e.clientX > tr.left && e.clientX < tr.right && e.clientY > tr.top && e.clientY < tr.bottom;
-
-                if (isOverTrash) {
+                
+                if (e.clientX > tr.left && e.clientX < tr.right && e.clientY > tr.top && e.clientY < tr.bottom) {
                     item.remove();
-                } else if (dist < 5) { 
-                    window.open(link, '_blank');
+                    saveWorkspace(); // Save state after deletion
+                } else {
+                    if (dist < 5) window.open(link, '_blank');
+                    saveWorkspace(); // Save new position after dropping
                 }
+                
                 trashCan.classList.remove('drag-over');
                 activeItem = null;
             };
 
             workspace.appendChild(item);
+            saveWorkspace(); // Save state when a new icon is created
         }
     </script>
 </body>
