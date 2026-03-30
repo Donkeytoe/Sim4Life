@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Web Audio Groovebox - Fully Loaded</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0b0b0f;
+            color: #f1f1f1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        h1 { margin-bottom: 5px; text-align: center; color: #ff0055; text-transform: uppercase; letter-spacing: 2px;}
+        .panel {
+            background: #16161d;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 1100px;
+        }
+        .controls-top {
+            display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;
+            margin-bottom: 10px; padding-bottom: 15px; border-bottom: 1px solid #333;
+        }
+        button, select {
+            padding: 10px 20px; font-size: 14px; font-weight: bold; background-color: #ff0055; color: #fff;
+            border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s, transform 0.1s;
+        }
+        select { background-color: #252530; border: 1px solid #555; }
+        button:hover { background-color: #ff3377; }
+        button:active { transform: scale(0.95); }
+        .btn-settings { background-color: #333; }
+        .btn-settings:hover { background-color: #555; }
+        
+        /* Section Headers */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 15px; }
+        .section-header h2 { font-size: 1.1rem; color: #fff; margin: 0; }
+        
+        /* Grids */
+        .grid-scroll-wrapper { width: 100%; overflow-x: auto; padding-bottom: 15px; }
+        .grid-scroll-wrapper::-webkit-scrollbar { height: 10px; }
+        .grid-scroll-wrapper::-webkit-scrollbar-track { background: #121218; border-radius: 5px; }
+        .grid-scroll-wrapper::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
+        .grid-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #ff0055; }
+
+        .grid-container { display: flex; flex-direction: column; gap: 4px; width: max-content; }
+        .track { display: flex; align-items: center; gap: 8px; }
+        .track-label { width: 65px; font-weight: bold; font-size: 12px; color: #aaa; text-align: right; flex-shrink: 0;}
+        .steps { display: flex; gap: 3px; }
+        .step { width: 30px; height: 30px; background-color: #20202a; border-radius: 4px; cursor: pointer; transition: background 0.1s; }
+        
+        .drum-step.active { background-color: #ff0055; box-shadow: 0 0 8px #ff005577; }
+        .synth-step.active { background-color: #00e5ff; box-shadow: 0 0 8px #00e5ff77; }
+        .step.playing { outline: 2px solid #fff; outline-offset: -2px; }
+        
+        /* Effects */
+        .effects-wrapper { display: flex; flex-direction: column; gap: 15px; }
+        .effects-category {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 15px; 
+            background: #0d0d12; padding: 15px; border-radius: 8px; border: 1px solid #252530;
+        }
+        .category-title { grid-column: 1 / -1; font-size: 0.85rem; color: #777; text-transform: uppercase; margin-bottom: -5px; letter-spacing: 1px; }
+        .slider-group { display: flex; flex-direction: column; }
+        .slider-group label { margin-bottom: 6px; font-size: 11px; color: #ccc; display: flex; justify-content: space-between; text-transform: uppercase; }
+        input[type="range"] { width: 100%; accent-color: #ff0055; cursor: pointer; }
+
+        /* Settings Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+            display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: #16161d; padding: 30px; border-radius: 12px; border: 1px solid #333; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;
+        }
+        .modal-content h2 { margin-top: 0; color: #ff0055; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .bind-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .bind-item { display: flex; justify-content: space-between; align-items: center; background: #0b0b0f; padding: 8px 12px; border-radius: 6px; margin-bottom: 5px;}
+        .bind-btn { background: #333; color: #fff; min-width: 50px; text-align: center; }
+        .bind-btn.waiting { background: #ff0055; color: white; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <h1>Ultimate Groovebox</h1>
+    
+    <div class="panel controls-top">
+        <button id="playBtn">Play / Pause</button>
+        <div class="slider-group" style="width: 130px;">
+            <label>Sequence</label>
+            <select id="stepSelector">
+                <option value="16">16 Steps</option>
+                <option value="32">32 Steps</option>
+                <option value="64">64 Steps</option>
+            </select>
+        </div>
+        <div class="slider-group" style="width: 150px;">
+            <label>BPM <span id="bpmVal">120</span></label>
+            <input type="range" id="bpm" min="60" max="200" value="120">
+        </div>
+        <div class="slider-group" style="width: 150px;">
+            <label>Master Vol <span id="volVal">0.7</span></label>
+            <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
+        </div>
+        <button class="btn-settings" id="openSettingsBtn">⚙️ Keybindings</button>
+    </div>
+
+    <div class="panel">
+        <div class="section-header">
+            <h2>Synthesizer</h2>
+            <div class="slider-group" style="width: 120px;">
+                <select id="octaveSelect">
+                    <option value="1">Base Octave 1</option>
+                    <option value="2">Base Octave 2</option>
+                    <option value="3" selected>Base Octave 3</option>
+                    <option value="4">Base Octave 4</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid-scroll-wrapper">
+            <div class="grid-container" id="synthGrid"></div>
+        </div>
+        
+        <hr style="border-color: #333; margin: 20px 0;">
+        
+        <div class="section-header">
+            <h2>Drum Machine</h2>
+        </div>
+        <div class="grid-scroll-wrapper">
+            <div class="grid-container" id="drumGrid"></div>
+        </div>
+    </div>
+
+    <div class="panel effects-wrapper">
+        <div class="effects-category">
+            <div class="category-title">Tone & Degradation</div>
+            <div class="slider-group"><label>Synth Rel <span id="synthRelVal">0.3 s</span></label><input type="range" id="synthRelease" min="0.05" max="2" step="0.05" value="0.3"></div>
+            <div class="slider-group"><label>Distortion <span id="distVal">0</span></label><input type="range" id="distortion" min="0" max="100" value="0"></div>
+            <div class="slider-group"><label>Bitcrush (Bits) <span id="crushVal">16</span></label><input type="range" id="bitcrusher" min="2" max="16" step="1" value="16"></div>
+            <div class="slider-group"><label>Filter Cut <span id="filterCutVal">3000 Hz</span></label><input type="range" id="filterCutoff" min="100" max="10000" value="3000"></div>
+            <div class="slider-group"><label>Filter Res <span id="filterQVal">2</span></label><input type="range" id="filterQ" min="0" max="20" value="2"></div>
+        </div>
+
+        <div class="effects-category">
+            <div class="category-title">Modulation</div>
+            <div class="slider-group"><label>Phaser Rate <span id="phaseRateVal">0.5 Hz</span></label><input type="range" id="phaseRate" min="0.1" max="5" step="0.1" value="0.5"></div>
+            <div class="slider-group"><label>Phaser Depth <span id="phaseDepthVal">0</span></label><input type="range" id="phaseDepth" min="0" max="1000" step="10" value="0"></div>
+            <div class="slider-group"><label>Pan Rate <span id="panRateVal">1 Hz</span></label><input type="range" id="panRate" min="0.1" max="10" step="0.1" value="1"></div>
+            <div class="slider-group"><label>Pan Depth <span id="panDepthVal">0</span></label><input type="range" id="panDepth" min="0" max="1" step="0.01" value="0"></div>
+            <div class="slider-group"><label>Tremolo Rate <span id="tremRateVal">5 Hz</span></label><input type="range" id="tremRate" min="0.1" max="20" step="0.1" value="5"></div>
+            <div class="slider-group"><label>Tremolo Depth <span id="tremDepthVal">0</span></label><input type="range" id="tremDepth" min="0" max="1" step="0.01" value="0"></div>
+        </div>
+
+        <div class="effects-category">
+            <div class="category-title">Space & Mastering</div>
+            <div class="slider-group"><label>Delay Mix <span id="delayMixVal">0.2</span></label><input type="range" id="delayMix" min="0" max="1" step="0.01" value="0.2"></div>
+            <div class="slider-group"><label>Reverb Mix <span id="reverbMixVal">0.3</span></label><input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.3"></div>
+            <div class="slider-group"><label>Comp Thresh <span id="compThreshVal">-24 dB</span></label><input type="range" id="compThresh" min="-60" max="0" value="-24"></div>
+            <div class="slider-group"><label>Comp Ratio <span id="compRatioVal">4 : 1</span></label><input type="range" id="compRatio" min="1" max="20" value="4"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <h2>Live Play Keybindings</h2>
+            <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Click a key to rebind it. Press any key to assign. The synth is ordered from bottom (lowest pitch) to top (highest pitch).</p>
+            <div class="bind-grid">
+                <div>
+                    <h3 style="color: #ff0055; font-size: 14px;">Drums</h3>
+                    <div id="drumBindsList"></div>
+                </div>
+                <div>
+                    <h3 style="color: #00e5ff; font-size: 14px;">Synthesizer</h3>
+                    <div id="synthBindsList"></div>
+                </div>
+            </div>
+            <button class="btn-settings" id="closeSettingsBtn" style="width: 100%; margin-top: 20px;">Close Settings</button>
+        </div>
+    </div>
+
+<script>
+    let audioCtx;
+    let masterGain, distortion, bitcrusherNode, filter, delay, delayGain, feedback;
+    let reverb, reverbGain, tremolo, tremoloLFO, tremDepthNode;
+    let panner, pannerLFO, panDepthNode, compressor;
+    let phaserAp1, phaserAp2, phaserAp3, phaserLFO, phaserDepthNode;
+    
+    let isPlaying = false;
+    let currentSynthRelease = 0.3;
+    
+    // Sequencing
+    let stepsCount = 16; let currentStep = 0; let nextNoteTime = 0;
+    const lookahead = 25.0; const scheduleAheadTime = 0.1; let timerID;
+
+    // --- DATA ---
+    const drumTracks = ['Kick', 'Snare', 'Clap', 'Tom', 'HiHat'];
+    let drumSeq = Array.from({length: drumTracks.length}, () => Array(stepsCount).fill(false));
+
+    const synthNotesCount = 12; let currentBaseOctave = 3; let synthNotes = [];
+    let synthSeq = Array.from({length: synthNotesCount}, () => Array(stepsCount).fill(false));
+
+    // Live Play Keybindings
+    let keyBindings = {
+        drums: ['a', 's', 'd', 'f', 'g'],
+        synth: ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']']
+    };
+    let assigningType = null; let assigningIndex = null;
+
+    function generateSynthNotes(baseOctave) {
+        const intervals = [0, 3, 5, 7, 10]; let notes = []; let currentOctave = baseOctave; let noteNames = ['C', 'Eb', 'F', 'G', 'Bb'];
+        for (let i = 0; i < synthNotesCount; i++) {
+            let noteIdx = i % 5; if (i > 0 && noteIdx === 0) currentOctave++; 
+            let midiNote = (currentOctave + 1) * 12 + intervals[noteIdx];
+            notes.push({ name: `${noteNames[noteIdx]}${currentOctave}`, freq: 440 * Math.pow(2, (midiNote - 69) / 12) });
+        }
+        synthNotes = notes.reverse(); 
+        const grid = document.getElementById('synthGrid');
+        if (grid && grid.children.length > 0) {
+            grid.querySelectorAll('.track-label').forEach((label, idx) => { label.innerText = synthNotes[idx].name; });
+        }
+    }
+    generateSynthNotes(currentBaseOctave);
+
+    function initAudio() {
+        if (audioCtx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+
+        // Core
+        masterGain = audioCtx.createGain(); distortion = audioCtx.createWaveShaper();
+        bitcrusherNode = audioCtx.createWaveShaper(); filter = audioCtx.createBiquadFilter();
+        
+        // Phaser
+        phaserAp1 = audioCtx.createBiquadFilter(); phaserAp1.type = 'allpass'; phaserAp1.frequency.value = 1000;
+        phaserAp2 = audioCtx.createBiquadFilter(); phaserAp2.type = 'allpass'; phaserAp2.frequency.value = 1000;
+        phaserAp3 = audioCtx.createBiquadFilter(); phaserAp3.type = 'allpass'; phaserAp3.frequency.value = 1000;
+        phaserLFO = audioCtx.createOscillator(); phaserDepthNode = audioCtx.createGain();
+
+        // Space & Mod
+        delay = audioCtx.createDelay(1.0); feedback = audioCtx.createGain(); delayGain = audioCtx.createGain();
+        reverb = audioCtx.createConvolver(); reverb.buffer = createReverbImpulse(); reverbGain = audioCtx.createGain();
+        tremolo = audioCtx.createGain(); tremoloLFO = audioCtx.createOscillator(); tremDepthNode = audioCtx.createGain();
+        panner = audioCtx.createStereoPanner(); pannerLFO = audioCtx.createOscillator(); panDepthNode = audioCtx.createGain();
+        compressor = audioCtx.createDynamicsCompressor();
+
+        // Values
+        masterGain.gain.value = document.getElementById('volume').value;
+        filter.type = 'lowpass'; filter.frequency.value = document.getElementById('filterCutoff').value; filter.Q.value = document.getElementById('filterQ').value;
+        distortion.curve = makeDistortionCurve(document.getElementById('distortion').value);
+        bitcrusherNode.curve = makeBitcrusherCurve(document.getElementById('bitcrusher').value);
+        delay.delayTime.value = 0.375; feedback.gain.value = 0.4; delayGain.gain.value = document.getElementById('delayMix').value;
+        reverbGain.gain.value = document.getElementById('reverbMix').value;
+        
+        tremoloLFO.frequency.value = document.getElementById('tremRate').value; tremDepthNode.gain.value = document.getElementById('tremDepth').value; tremolo.gain.value = 1;
+        pannerLFO.frequency.value = document.getElementById('panRate').value; panDepthNode.gain.value = document.getElementById('panDepth').value;
+        phaserLFO.frequency.value = document.getElementById('phaseRate').value; phaserDepthNode.gain.value = document.getElementById('phaseDepth').value;
+        compressor.threshold.value = document.getElementById('compThresh').value; compressor.ratio.value = document.getElementById('compRatio').value;
+
+        // Routing Modulators
+        tremoloLFO.connect(tremDepthNode); tremDepthNode.connect(tremolo.gain); tremoloLFO.start();
+        pannerLFO.connect(panDepthNode); panDepthNode.connect(panner.pan); pannerLFO.start();
+        phaserLFO.connect(phaserDepthNode); phaserDepthNode.connect(phaserAp1.frequency); phaserDepthNode.connect(phaserAp2.frequency); phaserDepthNode.connect(phaserAp3.frequency); phaserLFO.start();
+
+        // Audio Chain
+        distortion.connect(bitcrusherNode); bitcrusherNode.connect(filter);
+        filter.connect(phaserAp1); phaserAp1.connect(phaserAp2); phaserAp2.connect(phaserAp3); phaserAp3.connect(tremolo);
+        tremolo.connect(panner);
+
+        panner.connect(masterGain); // Dry
+        panner.connect(delay); delay.connect(feedback); feedback.connect(delay); delay.connect(delayGain); delayGain.connect(masterGain); // Delay
+        panner.connect(reverb); reverb.connect(reverbGain); reverbGain.connect(masterGain); // Reverb
+        masterGain.connect(compressor); compressor.connect(audioCtx.destination); // Master
+    }
+
+    // Effect Generators
+    function makeDistortionCurve(amount) {
+        let k = typeof amount === 'number' ? amount : 50; let n = 44100; let curve = new Float32Array(n); let deg = Math.PI / 180;
+        for (let i = 0; i < n; ++i) { let x = i * 2 / n - 1; curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x)); } return curve;
+    }
+    function makeBitcrusherCurve(bits) {
+        let levels = Math.pow(2, bits); let n = 44100; let curve = new Float32Array(n);
+        for (let i = 0; i < n; ++i) { let x = i * 2 / n - 1; curve[i] = Math.round(x * levels) / levels; } return curve;
+    }
+    function createReverbImpulse() {
+        const len = audioCtx.sampleRate * 2.5; const imp = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
+        for (let i = 0; i < len; i++) {
+            const dec = Math.pow(1 - i / len, 4); imp.getChannelData(0)[i] = (Math.random() * 2 - 1) * dec; imp.getChannelData(1)[i] = (Math.random() * 2 - 1) * dec;
+        } return imp;
+    }
+
+    // Synthesis
+    function playSynth(freq, time) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(freq, time);
+        osc.connect(gain); gain.connect(distortion);
+        const rel = parseFloat(currentSynthRelease);
+        gain.gain.setValueAtTime(0, time); gain.gain.linearRampToValueAtTime(0.3, time + 0.02); gain.gain.exponentialRampToValueAtTime(0.001, time + rel);
+        osc.start(time); osc.stop(time + rel);
+    }
+    function playDrum(type, time) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(distortion);
+        if (type === 'Kick') {
+            osc.frequency.setValueAtTime(150, time); osc.frequency.exponentialRampToValueAtTime(0.001, time + 0.5);
+            gain.gain.setValueAtTime(1, time); gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5); osc.start(time); osc.stop(time + 0.5);
+        } else if (type === 'Tom') {
+            osc.frequency.setValueAtTime(250, time); osc.frequency.exponentialRampToValueAtTime(50, time + 0.4);
+            gain.gain.setValueAtTime(0.8, time); gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4); osc.start(time); osc.stop(time + 0.4);
+        } else if (type === 'Snare') {
+            const noise = audioCtx.createBufferSource(); const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.5, audioCtx.sampleRate);
+            for (let i = 0; i < buf.length; i++) buf.getChannelData(0)[i] = Math.random() * 2 - 1; noise.buffer = buf; 
+            const f = audioCtx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1000; const ng = audioCtx.createGain(); noise.connect(f); f.connect(ng); ng.connect(distortion);
+            ng.gain.setValueAtTime(0.8, time); ng.gain.exponentialRampToValueAtTime(0.001, time + 0.2); noise.start(time);
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(250, time); gain.gain.setValueAtTime(0.5, time); gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1); osc.start(time); osc.stop(time + 0.2);
+        } else if (type === 'Clap') {
+            const noise = audioCtx.createBufferSource(); const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
+            for (let i = 0; i < buf.length; i++) buf.getChannelData(0)[i] = Math.random() * 2 - 1; noise.buffer = buf; 
+            const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1500; const ng = audioCtx.createGain(); noise.connect(f); f.connect(ng); ng.connect(distortion);
+            ng.gain.setValueAtTime(0, time); ng.gain.linearRampToValueAtTime(0.6, time + 0.01); ng.gain.linearRampToValueAtTime(0, time + 0.03); ng.gain.linearRampToValueAtTime(0.8, time + 0.04); ng.gain.linearRampToValueAtTime(0, time + 0.06); ng.gain.linearRampToValueAtTime(1, time + 0.07); ng.gain.exponentialRampToValueAtTime(0.001, time + 0.2); noise.start(time);
+        } else if (type === 'HiHat') {
+            const noise = audioCtx.createBufferSource(); const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+            for (let i = 0; i < buf.length; i++) buf.getChannelData(0)[i] = Math.random() * 2 - 1; noise.buffer = buf; 
+            const f = audioCtx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000; const ng = audioCtx.createGain(); noise.connect(f); f.connect(ng); ng.connect(distortion);
+            ng.gain.setValueAtTime(0.6, time); ng.gain.exponentialRampToValueAtTime(0.001, time + 0.05); noise.start(time);
+        }
+    }
+
+    // Sequence & Scheduling
+    function nextNote() { nextNoteTime += 0.25 * (60.0 / parseFloat(document.getElementById('bpm').value)); currentStep = (currentStep + 1) % stepsCount; }
+    function scheduleNote(stepNumber, time) {
+        requestAnimationFrame(() => updateUI(stepNumber));
+        drumTracks.forEach((track, idx) => { if (drumSeq[idx][stepNumber]) playDrum(track, time); });
+        synthNotes.forEach((noteObj, idx) => { if (synthSeq[idx][stepNumber]) playSynth(noteObj.freq, time); });
+    }
+    function scheduler() { while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime) { scheduleNote(currentStep, nextNoteTime); nextNote(); } timerID = setTimeout(scheduler, lookahead); }
+
+    // UI
+    function buildGrid(containerId, rowLabels, sequenceArray, stepClass) {
+        const container = document.getElementById(containerId); container.innerHTML = ''; 
+        rowLabels.forEach((label, trackIdx) => {
+            const trackDiv = document.createElement('div'); trackDiv.className = 'track';
+            const labelDiv = document.createElement('div'); labelDiv.className = 'track-label'; labelDiv.innerText = label; trackDiv.appendChild(labelDiv);
+            const stepsDiv = document.createElement('div'); stepsDiv.className = 'steps';
+            for (let i = 0; i < stepsCount; i++) {
+                const stepBtn = document.createElement('div'); stepBtn.className = `step ${stepClass}`;
+                if (sequenceArray[trackIdx][i]) stepBtn.classList.add('active'); 
+                stepBtn.id = `step-${containerId}-${trackIdx}-${i}`;
+                stepBtn.addEventListener('click', () => { sequenceArray[trackIdx][i] = !sequenceArray[trackIdx][i]; stepBtn.classList.toggle('active'); });
+                if (i % 4 === 0) stepBtn.style.borderLeft = "2px solid #555"; stepsDiv.appendChild(stepBtn);
+            }
+            trackDiv.appendChild(stepsDiv); container.appendChild(trackDiv);
+        });
+    }
+    function buildAllGrids() { buildGrid('synthGrid', synthNotes.map(n => n.name), synthSeq, 'synth-step'); buildGrid('drumGrid', drumTracks, drumSeq, 'drum-step'); }
+    function updateUI(step) {
+        document.querySelectorAll('.step.playing').forEach(el => el.classList.remove('playing'));
+        for (let i = 0; i < drumTracks.length; i++) document.getElementById(`step-drumGrid-${i}-${step}`).classList.add('playing');
+        for (let i = 0; i < synthNotes.length; i++) document.getElementById(`step-synthGrid-${i}-${step}`).classList.add('playing');
+    }
+
+    // Live Play
+    window.addEventListener('keydown', (e) => {
+        if (!audioCtx && !e.repeat) initAudio();
+        if (assigningType) { e.preventDefault(); keyBindings[assigningType][assigningIndex] = e.key.toLowerCase(); assigningType = null; assigningIndex = null; buildSettingsUI(); return; }
+        if (e.repeat) return; const key = e.key.toLowerCase();
+        
+        const drumIdx = keyBindings.drums.indexOf(key);
+        if (drumIdx !== -1) { playDrum(drumTracks[drumIdx], audioCtx.currentTime); const l = document.querySelectorAll('#drumGrid .track-label')[drumIdx]; if(l){l.style.color='#ff0055';setTimeout(()=>l.style.color='#aaa',100);} }
+
+        const synthIdx = keyBindings.synth.indexOf(key);
+        if (synthIdx !== -1) {
+            const visualIdx = (synthNotesCount - 1) - synthIdx; playSynth(synthNotes[visualIdx].freq, audioCtx.currentTime);
+            const l = document.querySelectorAll('#synthGrid .track-label')[visualIdx]; if(l){l.style.color='#00e5ff';setTimeout(()=>l.style.color='#aaa',100);}
+        }
+    });
+
+    // Settings
+    function buildSettingsUI() {
+        const dList = document.getElementById('drumBindsList'); dList.innerHTML = '';
+        drumTracks.forEach((track, idx) => {
+            const div = document.createElement('div'); div.className = 'bind-item'; div.innerHTML = `<span>${track}</span> <button class="bind-btn">${keyBindings.drums[idx].toUpperCase()}</button>`;
+            div.querySelector('button').addEventListener('click', (e) => { document.querySelectorAll('.bind-btn').forEach(b => b.classList.remove('waiting')); e.target.classList.add('waiting'); e.target.innerText = '...'; assigningType = 'drums'; assigningIndex = idx; });
+            dList.appendChild(div);
+        });
+        const sList = document.getElementById('synthBindsList'); sList.innerHTML = '';
+        for(let i = 0; i < synthNotesCount; i++) {
+            const vIdx = (synthNotesCount - 1) - i; const div = document.createElement('div'); div.className = 'bind-item';
+            div.innerHTML = `<span>Note ${i+1} (${synthNotes[vIdx].name})</span> <button class="bind-btn">${keyBindings.synth[i].toUpperCase()}</button>`;
+            div.querySelector('button').addEventListener('click', (e) => { document.querySelectorAll('.bind-btn').forEach(b => b.classList.remove('waiting')); e.target.classList.add('waiting'); e.target.innerText = '...'; assigningType = 'synth'; assigningIndex = i; });
+            sList.appendChild(div);
+        }
+    }
+    document.getElementById('openSettingsBtn').addEventListener('click', () => { buildSettingsUI(); document.getElementById('settingsModal').classList.add('active'); });
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').classList.remove('active'); assigningType = null; });
+
+    // Events
+    document.getElementById('playBtn').addEventListener('click', () => {
+        initAudio(); if (audioCtx.state === 'suspended') audioCtx.resume(); isPlaying = !isPlaying;
+        if (isPlaying) { currentStep = 0; nextNoteTime = audioCtx.currentTime + 0.05; scheduler(); document.getElementById('playBtn').innerText = 'Stop'; } 
+        else { clearTimeout(timerID); document.getElementById('playBtn').innerText = 'Play / Pause'; document.querySelectorAll('.step.playing').forEach(el => el.classList.remove('playing')); }
+    });
+    document.getElementById('octaveSelect').addEventListener('change', (e) => { currentBaseOctave = parseInt(e.target.value); generateSynthNotes(currentBaseOctave); buildSettingsUI(); });
+    document.getElementById('stepSelector').addEventListener('change', (e) => {
+        const newSize = parseInt(e.target.value); const resize = (track) => { let nt = Array(newSize).fill(false); for (let i = 0; i < Math.min(track.length, newSize); i++) nt[i] = track[i]; return nt; };
+        drumSeq = drumSeq.map(resize); synthSeq = synthSeq.map(resize); stepsCount = newSize; currentStep = currentStep % stepsCount; buildAllGrids();
+    });
+
+    const bindSlider = (id, labelId, suffix, callback) => { document.getElementById(id).addEventListener('input', (e) => { document.getElementById(labelId).innerText = `${e.target.value}${suffix}`; callback(parseFloat(e.target.value)); }); };
+    bindSlider('bpm', 'bpmVal', '', () => {}); bindSlider('volume', 'volVal', '', val => { if(masterGain) masterGain.gain.value = val; });
+    bindSlider('synthRelease', 'synthRelVal', ' s', val => { currentSynthRelease = val; });
+    
+    // Sliders
+    bindSlider('distortion', 'distVal', '', val => { if(distortion) distortion.curve = makeDistortionCurve(val); });
+    bindSlider('bitcrusher', 'crushVal', '', val => { if(bitcrusherNode) bitcrusherNode.curve = makeBitcrusherCurve(val); });
+    bindSlider('filterCutoff', 'filterCutVal', ' Hz', val => { if(filter) filter.frequency.value = val; });
+    bindSlider('filterQ', 'filterQVal', '', val => { if(filter) filter.Q.value = val; });
+    bindSlider('phaseRate', 'phaseRateVal', ' Hz', val => { if(phaserLFO) phaserLFO.frequency.value = val; });
+    bindSlider('phaseDepth', 'phaseDepthVal', '', val => { if(phaserDepthNode) phaserDepthNode.gain.value = val; });
+    bindSlider('panRate', 'panRateVal', ' Hz', val => { if(pannerLFO) pannerLFO.frequency.value = val; });
+    bindSlider('panDepth', 'panDepthVal', '', val => { if(panDepthNode) panDepthNode.gain.value = val; });
+    bindSlider('tremRate', 'tremRateVal', ' Hz', val => { if(tremoloLFO) tremoloLFO.frequency.value = val; });
+    bindSlider('tremDepth', 'tremDepthVal', '', val => { if(tremDepthNode) tremDepthNode.gain.value = val; });
+    bindSlider('delayMix', 'delayMixVal', '', val => { if(delayGain) delayGain.gain.value = val; });
+    bindSlider('reverbMix', 'reverbMixVal', '', val => { if(reverbGain) reverbGain.gain.value = val; });
+    bindSlider('compThresh', 'compThreshVal', ' dB', val => { if(compressor) compressor.threshold.value = val; });
+    bindSlider('compRatio', 'compRatioVal', ' : 1', val => { if(compressor) compressor.ratio.value = val; });
+
+    buildAllGrids();
+</script>
+</body>
+</html>
